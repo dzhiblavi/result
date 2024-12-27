@@ -1,7 +1,7 @@
 #pragma once
 
 #include "result/detail/constexpr_for.h"
-#include "result/value_or_error.h"
+#include "result/result.h"
 
 #include <tuple>
 

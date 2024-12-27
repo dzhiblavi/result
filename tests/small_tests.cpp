@@ -1,5 +1,5 @@
 #include "result/tools.h"
-#include "result/value_or_error.h"
+#include "result/result.h"
 
 #include <gtest/gtest.h>
 

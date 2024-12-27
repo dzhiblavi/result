@@ -2,7 +2,7 @@
 
 #include "result/detail/templates.h"
 #include "result/detail/type_list.h"
-#include "result/value_or_error.h"
+#include "result/result.h"
 
 namespace test {
 

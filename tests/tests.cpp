@@ -1,7 +1,7 @@
 #include "./remember_op.h"
 #include "./voe_tools.h"
 
-#include "result/value_or_error.h"
+#include "result/result.h"
 
 #include <gtest/gtest.h>
 #include <type_traits>

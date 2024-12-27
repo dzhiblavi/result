@@ -1,7 +1,7 @@
 #pragma once
 
 #include "result/detail/coro/return_object_holder.h"
-#include "result/value_or_error.h"
+#include "result/result.h"
 
 #include <coroutine>
 
