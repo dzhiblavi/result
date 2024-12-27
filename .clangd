@@ -1,0 +1,31 @@
+---
+Index:
+  Background: Build
+
+Completion:
+  AllScopes: true
+
+CompileFlags:
+  Remove:
+    - -W*
+  Add:
+    - -xc++
+    - -Wall
+    - -Wextra
+    - -Wpedantic
+
+InlayHints:
+  BlockEnd: No
+  Designators: Yes
+  Enabled: Yes
+  ParameterNames: Yes
+  DeducedTypes: Yes
+  TypeNameLimit: 24
+
+Hover:
+  ShowAKA: Yes
+
+Diagnostics:
+  UnusedIncludes: Strict
+  MissingIncludes: None
+...

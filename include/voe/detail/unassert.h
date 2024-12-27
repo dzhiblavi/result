@@ -1,0 +1,1 @@
+#undef VOE_ASSERT
