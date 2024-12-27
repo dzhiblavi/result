@@ -1,6 +1,6 @@
 #pragma once
 
-#include "voe/detail/templates/impl.h"
+#include "result/detail/templates/impl.h"
 
 #include <type_traits>
 

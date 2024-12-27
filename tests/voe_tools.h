@@ -1,8 +1,8 @@
 #pragma once
 
-#include "voe/detail/templates.h"
-#include "voe/detail/type_list.h"
-#include "voe/value_or_error.h"
+#include "result/detail/templates.h"
+#include "result/detail/type_list.h"
+#include "result/value_or_error.h"
 
 namespace test {
 
@@ -11,26 +11,26 @@ namespace tpl = ::util::tpl;
 
 template <typename ValueType, typename... ErrorTypes>
 using Types = list::map<
-    tpl::transferTo<tpl::bindFront<::voe::ValueOrError, ValueType>::template TN>::template Transfer,
+    tpl::transferTo<tpl::bindFront<::result::Result, ValueType>::template TN>::template Transfer,
     list::set::powerset<list::list<ErrorTypes...>>>;
 
-template <typename ValueType, typename ValueOrError>
+template <typename ValueType, typename Result>
 struct HasAnyErrorPredicate
-    : public std::negation<std::is_same<::voe::ValueOrError<ValueType>, ValueOrError>> {};
+    : public std::negation<std::is_same<::result::Result<ValueType>, Result>> {};
 
 template <typename ValueType, typename... ErrorTypes>
 using TypesWithErrors = list::filter<
     Types<ValueType, ErrorTypes...>,
     tpl::bindFront<HasAnyErrorPredicate, ValueType>::template T1>;
 
-template <typename ValueOrErrorPair>
+template <typename ResultPair>
 struct ConvertiblePredicate;
 
-template <typename ValueOrError1, typename ValueOrError2>
-struct ConvertiblePredicate<list::list<ValueOrError1, ValueOrError2>>
-    : public voe::detail::ConvertiblePredicate<
-          voe::detail::TransferTemplate<ValueOrError1, voe::detail::list::list>,
-          voe::detail::TransferTemplate<ValueOrError2, voe::detail::list::list>> {};
+template <typename Result1, typename Result2>
+struct ConvertiblePredicate<list::list<Result1, Result2>>
+    : public result::detail::ConvertiblePredicate<
+          result::detail::TransferTemplate<Result1, result::detail::list::list>,
+          result::detail::TransferTemplate<Result2, result::detail::list::list>> {};
 
 template <typename ValueType, typename... ErrorTypes>
 requires(!std::is_same_v<void, ValueType>)
@@ -48,54 +48,56 @@ void InstantiateAndCall(list::list<Types...>) {
 
 namespace unit {
 
-static_assert(std::is_same_v<Types<void>, list::list<::voe::VoidOrError<>>>);
+static_assert(std::is_same_v<Types<void>, list::list<::result::VoidOrError<>>>);
 static_assert(
-    std::is_same_v<Types<void, int>, list::list<voe::VoidOrError<>, voe::VoidOrError<int>>>);
+    std::is_same_v<Types<void, int>, list::list<result::VoidOrError<>, result::VoidOrError<int>>>);
 static_assert(std::is_same_v<
               Types<void, int, float>,
               list::list<
-                  voe::VoidOrError<>,
-                  voe::VoidOrError<float>,
-                  voe::VoidOrError<int>,
-                  voe::VoidOrError<int, float>>>);
-static_assert(std::is_same_v<Types<int>, list::list<voe::ValueOrError<int>>>);
-static_assert(std::is_same_v<
-              Types<int, float>,
-              list::list<voe::ValueOrError<int>, voe::ValueOrError<int, float>>>);
+                  result::VoidOrError<>,
+                  result::VoidOrError<float>,
+                  result::VoidOrError<int>,
+                  result::VoidOrError<int, float>>>);
+static_assert(std::is_same_v<Types<int>, list::list<result::Result<int>>>);
+static_assert(
+    std::is_same_v<Types<int, float>, list::list<result::Result<int>, result::Result<int, float>>>);
 static_assert(std::is_same_v<
               Types<void, int, float>,
               list::list<
-                  voe::VoidOrError<>,
-                  voe::VoidOrError<float>,
-                  voe::VoidOrError<int>,
-                  voe::VoidOrError<int, float>>>);
+                  result::VoidOrError<>,
+                  result::VoidOrError<float>,
+                  result::VoidOrError<int>,
+                  result::VoidOrError<int, float>>>);
 
 static_assert(std::is_same_v<TypesWithErrors<void>, list::list<>>);
-static_assert(std::is_same_v<TypesWithErrors<void, int>, list::list<voe::VoidOrError<int>>>);
-static_assert(
-    std::is_same_v<
-        TypesWithErrors<void, int, float>,
-        list::list<voe::VoidOrError<float>, voe::VoidOrError<int>, voe::VoidOrError<int, float>>>);
+static_assert(std::is_same_v<TypesWithErrors<void, int>, list::list<result::VoidOrError<int>>>);
+static_assert(std::is_same_v<
+              TypesWithErrors<void, int, float>,
+              list::list<
+                  result::VoidOrError<float>,
+                  result::VoidOrError<int>,
+                  result::VoidOrError<int, float>>>);
 static_assert(std::is_same_v<TypesWithErrors<int>, list::list<>>);
-static_assert(
-    std::is_same_v<TypesWithErrors<int, float>, list::list<voe::ValueOrError<int, float>>>);
-static_assert(
-    std::is_same_v<
-        TypesWithErrors<void, int, float>,
-        list::list<voe::VoidOrError<float>, voe::VoidOrError<int>, voe::VoidOrError<int, float>>>);
+static_assert(std::is_same_v<TypesWithErrors<int, float>, list::list<result::Result<int, float>>>);
+static_assert(std::is_same_v<
+              TypesWithErrors<void, int, float>,
+              list::list<
+                  result::VoidOrError<float>,
+                  result::VoidOrError<int>,
+                  result::VoidOrError<int, float>>>);
 
 static_assert(std::is_same_v<
               AllConvertiblePairs<int, char>,
               list::list<
-                  list::list<voe::ValueOrError<int>, voe::ValueOrError<int>>,
-                  list::list<voe::ValueOrError<int>, voe::ValueOrError<int, char>>,
-                  list::list<voe::ValueOrError<int, char>, voe::ValueOrError<int, char>>,
-                  list::list<voe::ValueOrError<void>, voe::ValueOrError<int>>,
-                  list::list<voe::ValueOrError<void>, voe::ValueOrError<int, char>>,
-                  list::list<voe::ValueOrError<void, char>, voe::ValueOrError<int, char>>,
-                  list::list<voe::ValueOrError<int>, voe::ValueOrError<void>>,
-                  list::list<voe::ValueOrError<int>, voe::ValueOrError<void, char>>,
-                  list::list<voe::ValueOrError<int, char>, voe::ValueOrError<void, char>>>>);
+                  list::list<result::Result<int>, result::Result<int>>,
+                  list::list<result::Result<int>, result::Result<int, char>>,
+                  list::list<result::Result<int, char>, result::Result<int, char>>,
+                  list::list<result::Result<void>, result::Result<int>>,
+                  list::list<result::Result<void>, result::Result<int, char>>,
+                  list::list<result::Result<void, char>, result::Result<int, char>>,
+                  list::list<result::Result<int>, result::Result<void>>,
+                  list::list<result::Result<int>, result::Result<void, char>>,
+                  list::list<result::Result<int, char>, result::Result<void, char>>>>);
 
 }  // namespace unit
 

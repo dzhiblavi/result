@@ -1,11 +1,11 @@
 #pragma once
 
-#include "voe/detail/helpers.h"
-#include "voe/detail/propagate_const.h"
+#include "result/detail/helpers.h"
+#include "result/detail/propagate_const.h"
 
 #include <type_traits>
 
-namespace voe::vtables {
+namespace result::vtables {
 
 template <bool IsTriviallyDestructible, typename Type>
 struct DestructorFunctor {
@@ -151,4 +151,4 @@ struct MoveAssignmentFunctorArray {
     }
 };
 
-}  // namespace voe::vtables
+}  // namespace result::vtables

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "voe/detail/helpers.h"
-#include "voe/detail/templates.h"
-#include "voe/detail/type_list.h"
+#include "result/detail/helpers.h"
+#include "result/detail/templates.h"
+#include "result/detail/type_list.h"
 
 #include <cassert>
 #include <cstdint>
@@ -10,14 +10,14 @@
 #include <iostream>
 #include <limits>
 
-namespace voe {
+namespace result {
 
 template <typename ValueType, typename... ErrorTypes>
-class [[nodiscard]] ValueOrError;
+class [[nodiscard]] Result;
 
-}  // namespace voe
+}  // namespace result
 
-namespace voe::detail {
+namespace result::detail {
 
 namespace list = ::util::list;
 
@@ -54,7 +54,7 @@ struct ErrorTypes {
 };
 
 template <typename ValueType, typename... ETs>
-struct ErrorTypes<ValueOrError<ValueType, ETs...>> {
+struct ErrorTypes<Result<ValueType, ETs...>> {
     using type = list::list<ETs...>;
 };
 
@@ -121,7 +121,7 @@ template <typename VoE>
 struct IsNotVoidVoePredicate;
 
 template <typename ValueType, typename... ErrorTypes>
-struct IsNotVoidVoePredicate<ValueOrError<ValueType, ErrorTypes...>>
+struct IsNotVoidVoePredicate<Result<ValueType, ErrorTypes...>>
     : public std::negation<std::is_same<ValueType, void>> {};
 
 }  // namespace impl
@@ -193,4 +193,4 @@ struct IsNotVoidPredicate : public std::negation<std::is_same<ValueType, void>> 
 template <typename VoE>
 using IsNotVoidVoePredicate = impl::IsNotVoidVoePredicate<VoE>;
 
-}  // namespace voe::detail
+}  // namespace result::detail

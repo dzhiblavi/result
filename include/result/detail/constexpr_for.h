@@ -4,7 +4,7 @@
 #include <tuple>
 #include <type_traits>
 
-namespace voe::detail {
+namespace result::detail {
 
 template <auto Start, auto End, auto Inc, typename F>
 constexpr void constexprFor(F&& f) {
@@ -28,4 +28,4 @@ constexpr void constexprFor(F&& f, TupleLike&& tuple) {
         std::forward<TupleLike>(tuple));
 }
 
-}  // namespace voe::detail
+}  // namespace result::detail

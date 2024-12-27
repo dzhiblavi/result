@@ -1,11 +1,11 @@
-#include "voe/coro.h"
+#include "result/coro.h"
 
 #include <gtest/gtest.h>
 
-namespace voe {
+namespace result {
 
 template <typename T>
-using Res = ValueOrError<T, std::string>;
+using Res = Result<T, std::string>;
 
 Res<int> just(int x) {
     co_return x;
@@ -43,4 +43,4 @@ TEST(Coro, Faulty) {
     EXPECT_EQ(x.GetError<std::string>(), "hello");
 }
 
-}  // namespace voe
+}  // namespace result

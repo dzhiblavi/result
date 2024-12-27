@@ -1,15 +1,15 @@
 #pragma once
 
-#include "voe/detail/coro/return_object_holder.h"
-#include "voe/value_or_error.h"
+#include "result/detail/coro/return_object_holder.h"
+#include "result/value_or_error.h"
 
 #include <coroutine>
 
-namespace voe::detail {
+namespace result::detail {
 
 template <typename T, typename... Es>
-struct ValueOrErrorPromiseBase {
-    ValueOrErrorPromiseBase() = default;
+struct ResultPromiseBase {
+    ResultPromiseBase() = default;
 
     auto get_return_object() noexcept {  // NOLINT
         return detail::ReturnedObjectHolder{&owner};
@@ -28,22 +28,22 @@ struct ValueOrErrorPromiseBase {
         std::terminate();
     }
 
-    detail::ReturnedObjectHolder<ValueOrError<T, Es...>>* owner = nullptr;
+    detail::ReturnedObjectHolder<Result<T, Es...>>* owner = nullptr;
 };
 
 template <typename T, typename... Es>
-struct ValueOrErrorPromise : ValueOrErrorPromiseBase<T, Es...> {
-    ValueOrErrorPromise() = default;
+struct ResultPromise : ResultPromiseBase<T, Es...> {
+    ResultPromise() = default;
 
     void return_value(T x) {  // NOLINT
         assert(this->owner);
         this->owner->assign(std::move(x));
     }
 
-    void return_value(ValueOrError<T, Es...> x) {  // NOLINT
+    void return_value(Result<T, Es...> x) {  // NOLINT
         assert(this->owner);
         this->owner->assign(std::move(x));
     }
 };
 
-}  // namespace voe::detail
+}  // namespace result::detail

@@ -1,7 +1,7 @@
-add_library(value_or_error INTERFACE)
+add_library(result INTERFACE)
 
 target_include_directories(
-  value_or_error INTERFACE $<BUILD_INTERFACE:${VOE_SOURCE_DIR}/include/>)
+  result INTERFACE $<BUILD_INTERFACE:${VOE_SOURCE_DIR}/include/>)
 target_include_directories(
-  value_or_error SYSTEM
+  result SYSTEM
   INTERFACE $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include/>)

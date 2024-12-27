@@ -1,15 +1,15 @@
 #pragma once
 
-#include "voe/detail/assert.h"
-#include "voe/detail/helpers.h"
-#include "voe/detail/vtables.h"
+#include "result/detail/assert.h"
+#include "result/detail/helpers.h"
+#include "result/detail/vtables.h"
 
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <type_traits>
 
-namespace voe {
+namespace result {
 
 namespace detail {
 
@@ -198,7 +198,7 @@ struct GetValueImpl : public DestructorImpl<ValueType, ErrorTypes...> {
      * @exception UB is HasValue() == false
      */
     ValueType& GetValue() & noexcept {
-        VOE_ASSERT(HasValue(), "GetValue() called on object with no value");
+        RESULT_ASSERT(HasValue(), "GetValue() called on object with no value");
         return reinterpret_cast<ValueType&>(Base::Data());
     }
 
@@ -207,7 +207,7 @@ struct GetValueImpl : public DestructorImpl<ValueType, ErrorTypes...> {
      * @exception UB is HasValue() == false
      */
     ValueType&& GetValue() && noexcept {
-        VOE_ASSERT(HasValue(), "GetValue() called on object with no value");
+        RESULT_ASSERT(HasValue(), "GetValue() called on object with no value");
         return reinterpret_cast<ValueType&&>(Base::Data());
     }
 
@@ -216,7 +216,7 @@ struct GetValueImpl : public DestructorImpl<ValueType, ErrorTypes...> {
      * @exception UB is HasValue() == false
      */
     const ValueType& GetValue() const& noexcept {
-        VOE_ASSERT(HasValue(), "GetValue() called on object with no value");
+        RESULT_ASSERT(HasValue(), "GetValue() called on object with no value");
         return reinterpret_cast<const ValueType&>(Base::Data());
     }
 };
@@ -227,7 +227,7 @@ struct GetValueImpl<void, ErrorTypes...> : public DestructorImpl<void, ErrorType
 
     /**
      * @return false
-     * @note ValueOrError<void, ...> never holds a value
+     * @note Result<void, ...> never holds a value
      */
     constexpr bool HasValue() const noexcept {
         return false;
@@ -257,7 +257,7 @@ struct GetErrorImpl : public GetValueImpl<ValueType, ErrorTypes...> {
      * @exception UB if !HasAnyError()
      */
     size_t GetErrorIndex() const noexcept {
-        VOE_ASSERT(HasAnyError(), "GetErrorIndex() called on object with no error");
+        RESULT_ASSERT(HasAnyError(), "GetErrorIndex() called on object with no error");
         return Base::LogicalIndex() - Base::LogicalFirstErrorIndex();
     }
 
@@ -279,7 +279,7 @@ struct GetErrorImpl : public GetValueImpl<ValueType, ErrorTypes...> {
         typename ErrorType,
         typename = std::enable_if_t<list::contains<ErrorTypesList, ErrorType>>>
     ErrorType& GetError() & noexcept {
-        VOE_ASSERT(HasError<ErrorType>(), "GetError<E>() called on object with no error E");
+        RESULT_ASSERT(HasError<ErrorType>(), "GetError<E>() called on object with no error E");
         return reinterpret_cast<ErrorType&>(Base::Data());
     }
 
@@ -291,7 +291,7 @@ struct GetErrorImpl : public GetValueImpl<ValueType, ErrorTypes...> {
         typename ErrorType,
         typename = std::enable_if_t<list::contains<ErrorTypesList, ErrorType>>>
     ErrorType&& GetError() && noexcept {
-        VOE_ASSERT(HasError<ErrorType>(), "GetError<E>() called on object with no error E");
+        RESULT_ASSERT(HasError<ErrorType>(), "GetError<E>() called on object with no error E");
         return reinterpret_cast<ErrorType&&>(Base::Data());
     }
 
@@ -303,7 +303,7 @@ struct GetErrorImpl : public GetValueImpl<ValueType, ErrorTypes...> {
         typename ErrorType,
         typename = std::enable_if_t<list::contains<ErrorTypesList, ErrorType>>>
     const ErrorType& GetError() const& noexcept {
-        VOE_ASSERT(HasError<ErrorType>(), "GetError<E>() called on object with no error E");
+        RESULT_ASSERT(HasError<ErrorType>(), "GetError<E>() called on object with no error E");
         return reinterpret_cast<const ErrorType&>(Base::Data());
     }
 
@@ -315,7 +315,7 @@ struct GetErrorImpl : public GetValueImpl<ValueType, ErrorTypes...> {
         typename ErrorType,
         typename = std::enable_if_t<list::contains<ErrorTypesList, ErrorType>>>
     const ErrorType&& GetError() const&& noexcept {
-        VOE_ASSERT(HasError<ErrorType>(), "GetError<E>() called on object with no error E");
+        RESULT_ASSERT(HasError<ErrorType>(), "GetError<E>() called on object with no error E");
         return reinterpret_cast<const ErrorType&&>(Base::Data());
     }
 
@@ -325,7 +325,7 @@ struct GetErrorImpl : public GetValueImpl<ValueType, ErrorTypes...> {
      */
     template <size_t Index>
     ErrorType<Index>& GetError() & noexcept {
-        VOE_ASSERT(
+        RESULT_ASSERT(
             HasError<ErrorType<Index>>(), "GetError<I>() called on object with no error E[I]");
         return reinterpret_cast<ErrorType<Index>&>(Base::Data());
     }
@@ -336,7 +336,7 @@ struct GetErrorImpl : public GetValueImpl<ValueType, ErrorTypes...> {
      */
     template <size_t Index>
     ErrorType<Index>&& GetError() && noexcept {
-        VOE_ASSERT(
+        RESULT_ASSERT(
             HasError<ErrorType<Index>>(), "GetError<I>() called on object with no error E[I]");
         return reinterpret_cast<ErrorType<Index>&>(Base::Data());
     }
@@ -347,7 +347,7 @@ struct GetErrorImpl : public GetValueImpl<ValueType, ErrorTypes...> {
      */
     template <size_t Index>
     const ErrorType<Index>& GetError() const& noexcept {
-        VOE_ASSERT(
+        RESULT_ASSERT(
             HasError<ErrorType<Index>>(), "GetError<I>() called on object with no error E[I]");
         return reinterpret_cast<const ErrorType<Index>&>(Base::Data());
     }
@@ -358,7 +358,7 @@ struct GetErrorImpl : public GetValueImpl<ValueType, ErrorTypes...> {
      */
     template <size_t Index>
     const ErrorType<Index>&& GetError() const&& noexcept {
-        VOE_ASSERT(
+        RESULT_ASSERT(
             HasError<ErrorType<Index>>(), "GetError<I>() called on object with no error E[I]");
         return reinterpret_cast<const ErrorType<Index>&&>(Base::Data());
     }
@@ -437,9 +437,9 @@ struct ConstructorsImpl : public ValueConstructorImpl<ValueType, ErrorTypes...> 
             typename FromType::StoredTypesList>::template MapTo<typename Base::StoredTypesList>;
 
         const size_t this_phys_index = PhysicalIndexMapping::map(from.PhysicalIndex());
-        VOE_ASSERT(
+        RESULT_ASSERT(
             this_phys_index != size_t(-1),
-            "Conversion constructor from ValueOrError<X, ...> to ValueOrError<void, ...>"
+            "Conversion constructor from Result<X, ...> to Result<void, ...>"
             " is trying to drop a value");
 
         FromType::
@@ -456,7 +456,7 @@ struct AssignmentsImpl : public ConstructorsImpl<ValueType, ErrorTypes...> {
     template <
         typename Assignee,
         typename = std::enable_if_t<
-            std::is_same_v<std::decay_t<Assignee>, ValueOrError<ValueType, ErrorTypes...>>>>
+            std::is_same_v<std::decay_t<Assignee>, Result<ValueType, ErrorTypes...>>>>
     void Assign(Assignee&& rhs) & noexcept {
         if (this == &rhs) [[unlikely]] {
             return;
@@ -484,22 +484,22 @@ struct AssignmentsImpl : public ConstructorsImpl<ValueType, ErrorTypes...> {
     }
 
     template <typename Convert, typename FromValueType, typename... FromErrorTypes>
-    void ConvertAssign(Convert&& rhs, ValueOrError<FromValueType, FromErrorTypes...>*) & noexcept {
+    void ConvertAssign(Convert&& rhs, Result<FromValueType, FromErrorTypes...>*) & noexcept {
         if (rhs.IsEmpty()) [[unlikely]] {
             Base::Clear();
             return;
         }
 
-        using RhsType = ValueOrError<FromValueType, FromErrorTypes...>;
+        using RhsType = Result<FromValueType, FromErrorTypes...>;
         using PhysicalIndexMapping = typename IndexMapping<
             typename RhsType::StoredTypesList>::template MapTo<typename Base::StoredTypesList>;
 
         const size_t rhs_phys_index = rhs.PhysicalIndex();
         const size_t this_phys_index = PhysicalIndexMapping::map(rhs_phys_index);
 
-        VOE_ASSERT(
+        RESULT_ASSERT(
             this_phys_index != size_t(-1),
-            "Conversion assignment of ValueOrError<X, ...> to ValueOrError<void, ...>"
+            "Conversion assignment of Result<X, ...> to Result<void, ...>"
             " is trying to drop a value");
 
         if (Base::PhysicalIndex() == this_phys_index) {
@@ -527,7 +527,7 @@ struct DiscardErrorImpl : public AssignmentsImpl<ValueType, ErrorTypes...> {
     template <typename... DiscardedErrors>
     using ResultType = TransferTemplate<
         list::set::subtract<ErrorTypesList, list::list<DiscardedErrors...>>,
-        ValueOrError,
+        Result,
         ValueType>;
 
     /**
@@ -571,12 +571,12 @@ struct DiscardValueImpl : public DiscardErrorImpl<ValueType, ErrorTypes...> {
 
     /**
      * @brief Discards the value from the type
-     * @return an object of type ValueOrError<void, ErrorTypes...> with the same state as this
+     * @return an object of type Result<void, ErrorTypes...> with the same state as this
      * @exception UB: this object holds a value
      */
-    ValueOrError<void, ErrorTypes...> DiscardValue() && noexcept {
-        VOE_ASSERT(!Base::HasValue(), "Discarding ValueType on object holding a value");
-        return ValueOrError<void, ErrorTypes...>(std::move(*this));
+    Result<void, ErrorTypes...> DiscardValue() && noexcept {
+        RESULT_ASSERT(!Base::HasValue(), "Discarding ValueType on object holding a value");
+        return Result<void, ErrorTypes...>(std::move(*this));
     }
 };
 
@@ -586,7 +586,7 @@ struct DiscardValueImpl<void, ErrorTypes...> : public DiscardErrorImpl<void, Err
 
     /**
      * @brief Discards the value from the type
-     * @return an object of type ValueOrError<void, ErrorTypes...> with the same state as this
+     * @return an object of type Result<void, ErrorTypes...> with the same state as this
      * @note actually does nothing for VoidOrError instances
      */
     auto& DiscardValue() & noexcept {
@@ -595,7 +595,7 @@ struct DiscardValueImpl<void, ErrorTypes...> : public DiscardErrorImpl<void, Err
 
     /**
      * @brief Discards the value from the type
-     * @return an object of type ValueOrError<void, ErrorTypes...> with the same state as this
+     * @return an object of type Result<void, ErrorTypes...> with the same state as this
      * @note actually does nothing for VoidOrError instances
      */
     const auto& DiscardValue() const& noexcept {
@@ -604,7 +604,7 @@ struct DiscardValueImpl<void, ErrorTypes...> : public DiscardErrorImpl<void, Err
 
     /**
      * @brief Discards the value from the type
-     * @return an object of type ValueOrError<void, ErrorTypes...> with the same state as this
+     * @return an object of type Result<void, ErrorTypes...> with the same state as this
      * @note moves out the object
      */
     auto DiscardValue() && noexcept {
@@ -617,9 +617,9 @@ struct VisitImpl : public DiscardValueImpl<ValueType, ErrorTypes...> {
     using Base = DiscardValueImpl<ValueType, ErrorTypes...>;
 
     /**
-     * @brief Visit paradigm implementation for ValueOrError objects
+     * @brief Visit paradigm implementation for Result objects
      *
-     * For non-void-value ValueOrError objects, the specified functor F will be
+     * For non-void-value Result objects, the specified functor F will be
      * called as follows:
      * - F(GetValue()) if the object holds a value.
      * - F(GetError<E>()) if the object holds an error of type E.
@@ -632,13 +632,13 @@ struct VisitImpl : public DiscardValueImpl<ValueType, ErrorTypes...> {
             std::is_invocable_v<Visitor, ValueType> &&
             (... && std::is_invocable_v<Visitor, ErrorTypes>)>>
     decltype(auto) Visit(Visitor&& visitor) {
-        VOE_ASSERT(!Base::IsEmpty(), "Visit() called on an empty object");
+        RESULT_ASSERT(!Base::IsEmpty(), "Visit() called on an empty object");
         return Base::template VisitArray<Visitor, void>::Call(
             std::forward<Visitor>(visitor), Base::Data(), Base::PhysicalIndex());
     }
 
     /**
-     * @brief Visit paradigm implementation for ValueOrError objects
+     * @brief Visit paradigm implementation for Result objects
      * @see Visit, this is a const version of it
      */
     template <
@@ -647,7 +647,7 @@ struct VisitImpl : public DiscardValueImpl<ValueType, ErrorTypes...> {
             std::is_invocable_v<Visitor, const ValueType> &&
             (... && std::is_invocable_v<Visitor, const ErrorTypes>)>>
     decltype(auto) Visit(Visitor&& visitor) const {
-        VOE_ASSERT(!Base::IsEmpty(), "Visit() called on an empty object");
+        RESULT_ASSERT(!Base::IsEmpty(), "Visit() called on an empty object");
         return Base::template VisitArray<Visitor, const void>::Call(
             std::forward<Visitor>(visitor), Base::Data(), Base::PhysicalIndex());
     }
@@ -658,9 +658,9 @@ struct VisitImpl<void, ErrorTypes...> : public DiscardValueImpl<void, ErrorTypes
     using Base = DiscardValueImpl<void, ErrorTypes...>;
 
     /**
-     * @brief Visit paradigm implementation for ValueOrError objects
+     * @brief Visit paradigm implementation for Result objects
      *
-     * For void-value ValueOrError objects, the specified functor F will be called as follows:
+     * For void-value Result objects, the specified functor F will be called as follows:
      * - F() if the object is empty (holds a void value).
      * - F(GetError<E>()) if the object holds an error of type E.
      */
@@ -678,7 +678,7 @@ struct VisitImpl<void, ErrorTypes...> : public DiscardValueImpl<void, ErrorTypes
     }
 
     /**
-     * @brief Visit paradigm implementation for ValueOrError objects
+     * @brief Visit paradigm implementation for Result objects
      * @see Visit, this is a const version of it
      */
     template <
@@ -697,7 +697,7 @@ struct VisitImpl<void, ErrorTypes...> : public DiscardValueImpl<void, ErrorTypes
 };
 
 template <typename ValueType, typename... ErrorTypes>
-using ValueOrErrorImpl = VisitImpl<ValueType, ErrorTypes...>;
+using ResultImpl = VisitImpl<ValueType, ErrorTypes...>;
 
 }  // namespace detail
 
@@ -715,9 +715,9 @@ using ValueOrErrorImpl = VisitImpl<ValueType, ErrorTypes...>;
  * @exception None (the object does not produce any exceptions)
  */
 template <typename ValueType, typename... ErrorTypes>
-class [[nodiscard]] ValueOrError : public detail::ValueOrErrorImpl<ValueType, ErrorTypes...> {
-    using Base = detail::ValueOrErrorImpl<ValueType, ErrorTypes...>;
-    using SelfType = ValueOrError<ValueType, ErrorTypes...>;
+class [[nodiscard]] Result : public detail::ResultImpl<ValueType, ErrorTypes...> {
+    using Base = detail::ResultImpl<ValueType, ErrorTypes...>;
+    using SelfType = Result<ValueType, ErrorTypes...>;
 
  public:
     using value_type = ValueType;
@@ -727,16 +727,16 @@ class [[nodiscard]] ValueOrError : public detail::ValueOrErrorImpl<ValueType, Er
         "Error types must not contain duplicates");
 
     /**
-     * @brief Constructs an empty ValueOrError
+     * @brief Constructs an empty Result
      *
-     * An empty ValueOrError neither holds error nor value.
+     * An empty Result neither holds error nor value.
      * Calls to such methods as GetError or GetValue will result in UB.
      * HasAnyError, HasError<*>, HasValue will return false;
      */
-    ValueOrError() noexcept = default;
+    Result() noexcept = default;
 
     /**
-     * @brief Construct a ValueOrError holding a value
+     * @brief Construct a Result holding a value
      *
      * The resulting object will store the value. HasValue will return true and
      * GetValue will be legal to use.
@@ -747,30 +747,30 @@ class [[nodiscard]] ValueOrError : public detail::ValueOrErrorImpl<ValueType, Er
     template <
         typename FromType,
         typename = std::enable_if_t<std::is_same_v<ValueType, std::decay_t<FromType>>>>
-    /* implicit */ ValueOrError(FromType&& from) noexcept(
+    /* implicit */ Result(FromType&& from) noexcept(
         std::is_nothrow_copy_constructible_v<ValueType>) {
         Base::ValueConstruct(std::forward<FromType>(from));
     }
 
-    ValueOrError(ValueOrError& voe) {
+    Result(Result& voe) {
         Base::Construct(voe);
     }
-    ValueOrError(const ValueOrError& voe) {
+    Result(const Result& voe) {
         Base::Construct(voe);
     }
-    ValueOrError(ValueOrError&& voe) {
+    Result(Result&& voe) {
         Base::Construct(std::move(voe));
     }
-    ValueOrError(const ValueOrError&& voe) {
+    Result(const Result&& voe) {
         Base::Construct(std::move(voe));
     }
 
     /**
-     * @brief ValueOrError conversion constructor
+     * @brief Result conversion constructor
      *
-     * The ValueOrError template instances are considered convertible iff:
+     * The Result template instances are considered convertible iff:
      * - Their respective ValueType parameters are either same or void (one or both);
-     * - The ErrorTypes... of from ValueOrError must be a subset of ErrorTypes... of to one.
+     * - The ErrorTypes... of from Result must be a subset of ErrorTypes... of to one.
      *
      * The rules are as follows:
      * - If from is empty, then the resulting object will be empty;
@@ -786,33 +786,33 @@ class [[nodiscard]] ValueOrError : public detail::ValueOrErrorImpl<ValueType, Er
         typename = std::enable_if_t<detail::Convertible<
             detail::TransferTemplate<std::decay_t<FromVoe>, detail::list::list>,  //
             detail::list::list<ValueType, ErrorTypes...>>>>
-    /* implicit */ ValueOrError(FromVoe&& from, void* = nullptr) {
+    /* implicit */ Result(FromVoe&& from, void* = nullptr) {
         Base::ConvertConstruct(
             std::forward<FromVoe>(from), static_cast<std::decay_t<FromVoe>*>(nullptr));
     }
 
-    SelfType& operator=(ValueOrError& arg) & {
+    SelfType& operator=(Result& arg) & {
         Base::Assign(arg);
         return *this;
     }
-    SelfType& operator=(const ValueOrError& arg) & {
+    SelfType& operator=(const Result& arg) & {
         Base::Assign(arg);
         return *this;
     }
-    SelfType& operator=(ValueOrError&& arg) & {
+    SelfType& operator=(Result&& arg) & {
         Base::Assign(std::move(arg));
         return *this;
     }
-    SelfType& operator=(const ValueOrError&& arg) & {
+    SelfType& operator=(const Result&& arg) & {
         Base::Assign(std::move(arg));
         return *this;
     }
 
     /**
-     * @brief ValueOrError conversion assignment operator
+     * @brief Result conversion assignment operator
      *
      * See the conversion constructor operator in order to review the definition
-     * of convertible ValueOrError template instances. The resulting object
+     * of convertible Result template instances. The resulting object
      * will have the same properties as described in conversion constructor.
      *
      * The difference to conversion constructor is that if this object holds a value or an error,
@@ -835,20 +835,20 @@ class [[nodiscard]] ValueOrError : public detail::ValueOrErrorImpl<ValueType, Er
 
  protected:
     template <typename, typename...>
-    friend class ValueOrError;
+    friend class Result;
 };
 
 /**
  * @brief A shorter type template alias for void-returning functions
  */
 template <typename... ErrorTypes>
-using VoidOrError = ValueOrError<void, ErrorTypes...>;
+using VoidOrError = Result<void, ErrorTypes...>;
 
 /**
  * @brief A convenient and explicit way to create error objects
  * @param[in] ErrorType the type of an error
  * @param[in] error instance of #ErrorType&&
- * @return an instance of #ValueOrError<void, ErrorType> holding an error
+ * @return an instance of #Result<void, ErrorType> holding an error
  */
 template <typename ErrorType, typename Decayed = std::decay_t<ErrorType>>
 VoidOrError<Decayed> MakeError(ErrorType&& error) {
@@ -862,7 +862,7 @@ VoidOrError<Decayed> MakeError(ErrorType&& error) {
  * @param[in] ErrorType the type of an error
  * @param[in] Args types of #ErrorType constructor arguments
  * @param[in] args #ErrorType constructor arguments
- * @return an instance of #ValueOrError<void, ErrorType> holding an error
+ * @return an instance of #Result<void, ErrorType> holding an error
  */
 template <typename ErrorType, typename... Args>
 VoidOrError<ErrorType> MakeError(Args&&... args) {
@@ -871,6 +871,6 @@ VoidOrError<ErrorType> MakeError(Args&&... args) {
     return result;
 }
 
-}  // namespace voe
+}  // namespace result
 
-#include "voe/detail/unassert.h"
+#include "result/detail/unassert.h"

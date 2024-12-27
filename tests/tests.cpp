@@ -1,12 +1,12 @@
 #include "./remember_op.h"
 #include "./voe_tools.h"
 
-#include "voe/value_or_error.h"
+#include "result/value_or_error.h"
 
 #include <gtest/gtest.h>
 #include <type_traits>
 
-namespace voe {
+namespace result {
 
 namespace list = util::list;
 
@@ -19,7 +19,7 @@ overloaded(Ts...) -> overloaded<Ts...>;
 
 template <typename ValueType, typename VisitType, typename... ErrorTypes>
 struct VisitChecker {
-    static void Check(ValueOrError<ValueType, ErrorTypes...>& voe) {
+    static void Check(Result<ValueType, ErrorTypes...>& voe) {
         if constexpr (std::is_same_v<void, VisitType>) {
             EXPECT_DEATH(
                 voe.Visit(overloaded{[]() {}, [](auto&&) {}}),
@@ -36,7 +36,7 @@ struct VisitChecker {
 
 template <typename VisitType, typename... ErrorTypes>
 struct VisitChecker<void, VisitType, ErrorTypes...> {
-    static void Check(ValueOrError<void, ErrorTypes...>& voe) {
+    static void Check(Result<void, ErrorTypes...>& voe) {
         if constexpr (std::is_same_v<void, VisitType>) {
             voe.Visit(overloaded{
                 [](auto&&) { FAIL() << "Unexpected visit of some error type"; },
@@ -54,9 +54,9 @@ struct VisitChecker<void, VisitType, ErrorTypes...> {
 
 struct DefaultConstructorTest {
     template <typename ValueType, typename... ErrorTypes>
-    static void call(ValueOrError<ValueType, ErrorTypes...>*) {
+    static void call(Result<ValueType, ErrorTypes...>*) {
         test::OpCollector collector;
-        ValueOrError<ValueType, ErrorTypes...> voe;
+        Result<ValueType, ErrorTypes...> voe;
 
         EXPECT_TRUE(collector.Equal(/* empty */));
         EXPECT_TRUE(voe.IsEmpty());
@@ -69,9 +69,9 @@ struct DefaultConstructorTest {
 
 struct ValueConstructorTest {
     template <typename ValueType, typename... ErrorTypes>
-    static void call(ValueOrError<ValueType, ErrorTypes...>*) {
+    static void call(Result<ValueType, ErrorTypes...>*) {
         test::OpCollector collector;
-        ValueOrError<ValueType, ErrorTypes...> voe(ValueType{});
+        Result<ValueType, ErrorTypes...> voe(ValueType{});
 
         EXPECT_TRUE(collector.Equal(
             test::Op(test::Create, ValueType::Idx),
@@ -89,16 +89,16 @@ struct ValueConstructorTest {
 
 struct MakeErrorTest {
     template <typename ValueType, typename... ErrorTypes>
-    static void call(ValueOrError<ValueType, ErrorTypes...>* ptr) {
+    static void call(Result<ValueType, ErrorTypes...>* ptr) {
         (TestMakeError(ptr, static_cast<ErrorTypes*>(nullptr)), ...);
     }
 
     template <typename ValueType, typename... ErrorTypes, typename ErrorType>
-    static void TestMakeError(ValueOrError<ValueType, ErrorTypes...>*, ErrorType*) {
+    static void TestMakeError(Result<ValueType, ErrorTypes...>*, ErrorType*) {
         static constexpr size_t error_index = list::indexOf<list::list<ErrorTypes...>, ErrorType>;
 
         test::OpCollector collector;
-        ValueOrError<ValueType, ErrorTypes...> voe{MakeError<ErrorType>()};
+        Result<ValueType, ErrorTypes...> voe{MakeError<ErrorType>()};
 
         EXPECT_TRUE(collector.Equal(
             test::Op(test::Create, ErrorType::Idx),
@@ -131,48 +131,48 @@ struct CreateBase {
     struct ErrorMarker {};
 
     template <typename ValueType, typename... ErrorTypes>
-    static ValueOrError<ValueType, ErrorTypes...> Create(
-        ValueOrError<ValueType, ErrorTypes...>*, EmptyMarker) {
+    static Result<ValueType, ErrorTypes...> Create(
+        Result<ValueType, ErrorTypes...>*, EmptyMarker) {
         return {};
     }
 
     template <typename ValueType, typename... ErrorTypes, typename T>
-    static ValueOrError<ValueType, ErrorTypes...> Create(
-        ValueOrError<ValueType, ErrorTypes...>*, ValueMarker<T>) {
+    static Result<ValueType, ErrorTypes...> Create(
+        Result<ValueType, ErrorTypes...>*, ValueMarker<T>) {
         return T{};
     }
 
     template <typename ValueType, typename... ErrorTypes, typename T>
-    static ValueOrError<ValueType, ErrorTypes...> Create(
-        ValueOrError<ValueType, ErrorTypes...>*, ErrorMarker<T>) {
+    static Result<ValueType, ErrorTypes...> Create(
+        Result<ValueType, ErrorTypes...>*, ErrorMarker<T>) {
         return MakeError<T>();
     }
 
     template <typename ValueType, typename... ErrorTypes>
-    static ValueOrError<ValueType, ErrorTypes...> CreateEmpty(
-        ValueOrError<ValueType, ErrorTypes...>* ptr) {
+    static Result<ValueType, ErrorTypes...> CreateEmpty(
+        Result<ValueType, ErrorTypes...>* ptr) {
         return Create(ptr, EmptyMarker{});
     }
 
     template <typename ValueType, typename... ErrorTypes, typename T>
-    static ValueOrError<ValueType, ErrorTypes...> CreateOther(
-        ValueOrError<ValueType, ErrorTypes...>*, ValueMarker<T>) {
+    static Result<ValueType, ErrorTypes...> CreateOther(
+        Result<ValueType, ErrorTypes...>*, ValueMarker<T>) {
         return MakeError<typename First<ErrorTypes...>::type>();
     }
 
     template <typename ValueType, typename... ErrorTypes, typename T>
-    static ValueOrError<ValueType, ErrorTypes...> CreateOther(
-        ValueOrError<ValueType, ErrorTypes...>*, ErrorMarker<T>) {
+    static Result<ValueType, ErrorTypes...> CreateOther(
+        Result<ValueType, ErrorTypes...>*, ErrorMarker<T>) {
         return ValueType{};
     }
 
     template <typename ValueType, typename... ErrorTypes, typename T>
-    static constexpr int OtherIndex(ValueOrError<ValueType, ErrorTypes...>*, ValueMarker<T>) {
+    static constexpr int OtherIndex(Result<ValueType, ErrorTypes...>*, ValueMarker<T>) {
         return First<ErrorTypes...>::type::Idx;
     }
 
     template <typename ValueType, typename... ErrorTypes, typename T>
-    static constexpr int OtherIndex(ValueOrError<ValueType, ErrorTypes...>*, ErrorMarker<T>) {
+    static constexpr int OtherIndex(Result<ValueType, ErrorTypes...>*, ErrorMarker<T>) {
         return ValueType::Idx;
     }
 };
@@ -184,8 +184,8 @@ struct ConstructorsTest : CreateBase {
         typename ValueType2,
         typename... ErrorTypes2>
     static void call(list::list<
-                     ValueOrError<ValueType1, ErrorTypes1...>,
-                     ValueOrError<ValueType2, ErrorTypes2...>>* p) {
+                     Result<ValueType1, ErrorTypes1...>,
+                     Result<ValueType2, ErrorTypes2...>>* p) {
         static constexpr bool both_non_void =
             !std::is_same_v<void, ValueType1> && !std::is_same_v<void, ValueType2>;
 
@@ -223,35 +223,35 @@ struct ConstructorsTest : CreateBase {
         typename ConstructAs>
     static void TestConstructFrom(
         list::list<
-            ValueOrError<ValueType1, ErrorTypes1...>,
-            ValueOrError<ValueType2, ErrorTypes2...>>*,
+            Result<ValueType1, ErrorTypes1...>,
+            Result<ValueType2, ErrorTypes2...>>*,
         ConstructAs as) {
-        using ValueOrError1 = ValueOrError<ValueType1, ErrorTypes1...>;
-        using ValueOrError2 = ValueOrError<ValueType2, ErrorTypes2...>;
+        using Result1 = Result<ValueType1, ErrorTypes1...>;
+        using Result2 = Result<ValueType2, ErrorTypes2...>;
         {
-            ValueOrError1 voe1{Create(static_cast<ValueOrError1*>(nullptr), as)};
+            Result1 voe1{Create(static_cast<Result1*>(nullptr), as)};
             test::OpCollector collector;
-            ValueOrError2 voe2{voe1};
+            Result2 voe2{voe1};
             Check(collector, test::CONSTRUCT_COPY, as);
         }
         {
-            ValueOrError1 voe1{Create(static_cast<ValueOrError1*>(nullptr), as)};
-            const ValueOrError1& voe1_cref = voe1;
+            Result1 voe1{Create(static_cast<Result1*>(nullptr), as)};
+            const Result1& voe1_cref = voe1;
             test::OpCollector collector;
-            ValueOrError2 voe2{voe1_cref};
+            Result2 voe2{voe1_cref};
             Check(collector, test::CONSTRUCT_COPY_CONST, as);
         }
         {
-            ValueOrError1 voe1{Create(static_cast<ValueOrError1*>(nullptr), as)};
+            Result1 voe1{Create(static_cast<Result1*>(nullptr), as)};
             test::OpCollector collector;
-            ValueOrError2 voe2{std::move(voe1)};
+            Result2 voe2{std::move(voe1)};
             Check(collector, test::CONSTRUCT_MOVE, as);
         }
         {
-            ValueOrError1 voe1{Create(static_cast<ValueOrError1*>(nullptr), as)};
-            const ValueOrError1&& voe1_crref = std::move(voe1);
+            Result1 voe1{Create(static_cast<Result1*>(nullptr), as)};
+            const Result1&& voe1_crref = std::move(voe1);
             test::OpCollector collector;
-            ValueOrError2 voe2{std::move(voe1_crref)};
+            Result2 voe2{std::move(voe1_crref)};
             Check(collector, test::CONSTRUCT_MOVE_CONST, as);
         }
     }
@@ -264,12 +264,12 @@ struct AssignmentsTest : CreateBase {
         typename ValueType2,
         typename... ErrorTypes2>
     static void call(list::list<
-                     ValueOrError<ValueType1, ErrorTypes1...>,
-                     ValueOrError<ValueType2, ErrorTypes2...>>*) {
-        using ValueOrError1 = ValueOrError<ValueType1, ErrorTypes1...>;
-        using ValueOrError2 = ValueOrError<ValueType2, ErrorTypes2...>;
-        ValueOrError1* p1{nullptr};
-        ValueOrError2* p2{nullptr};
+                     Result<ValueType1, ErrorTypes1...>,
+                     Result<ValueType2, ErrorTypes2...>>*) {
+        using Result1 = Result<ValueType1, ErrorTypes1...>;
+        using Result2 = Result<ValueType2, ErrorTypes2...>;
+        Result1* p1{nullptr};
+        Result2* p2{nullptr};
 
         // Empty <- Empty
         // Assign empty to empty voe
@@ -395,40 +395,40 @@ struct AssignmentsTest : CreateBase {
         typename... ErrorTypes2,
         typename... Ops>
     static void TestAssign(
-        ValueOrError<ValueType1, ErrorTypes1...> v_from,
-        ValueOrError<ValueType2, ErrorTypes2...> v_to,
+        Result<ValueType1, ErrorTypes1...> v_from,
+        Result<ValueType2, ErrorTypes2...> v_to,
         int index_from,
         test::Type baseop,
         int step,
         Ops... ops_prefix) {
-        using ValueOrError1 = ValueOrError<ValueType1, ErrorTypes1...>;
-        using ValueOrError2 = ValueOrError<ValueType2, ErrorTypes2...>;
+        using Result1 = Result<ValueType1, ErrorTypes1...>;
+        using Result2 = Result<ValueType2, ErrorTypes2...>;
         {
-            ValueOrError2 voe{v_to};
-            ValueOrError1 from{v_from};
+            Result2 voe{v_to};
+            Result1 from{v_from};
             test::OpCollector collector;
             voe = from;
             Check(collector, static_cast<test::Type>(baseop + 0 * step), index_from, ops_prefix...);
         }
         {
-            ValueOrError2 voe{v_to};
-            ValueOrError1 from{v_from};
-            const ValueOrError1& from_cref = from;
+            Result2 voe{v_to};
+            Result1 from{v_from};
+            const Result1& from_cref = from;
             test::OpCollector collector;
             voe = from_cref;
             Check(collector, static_cast<test::Type>(baseop + 1 * step), index_from, ops_prefix...);
         }
         {
-            ValueOrError2 voe{v_to};
-            ValueOrError1 from{v_from};
+            Result2 voe{v_to};
+            Result1 from{v_from};
             test::OpCollector collector;
             voe = std::move(from);
             Check(collector, static_cast<test::Type>(baseop + 2 * step), index_from, ops_prefix...);
         }
         {
-            ValueOrError2 voe{v_to};
-            ValueOrError1 from{v_from};
-            const ValueOrError1&& from_crref = std::move(from);
+            Result2 voe{v_to};
+            Result1 from{v_from};
+            const Result1&& from_crref = std::move(from);
             test::OpCollector collector;
             voe = std::move(from_crref);
             Check(collector, static_cast<test::Type>(baseop + 3 * step), index_from, ops_prefix...);
@@ -482,4 +482,4 @@ TEST(AssignmentsTest, CorrectTypeAndOperation) {
     test::InstantiateAndCall<AssignmentsTest>(Types{});
 }
 
-}  // namespace voe
+}  // namespace result

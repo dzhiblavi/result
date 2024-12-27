@@ -1,6 +1,6 @@
 #pragma once
 
-#include "voe/detail/type_list/front.h"
+#include "result/detail/type_list/front.h"
 
 #include <type_traits>
 #include <utility>

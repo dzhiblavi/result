@@ -4,7 +4,7 @@
 #include <optional>
 #include <utility>
 
-namespace voe::detail {
+namespace result::detail {
 
 template <typename T>
 class ReturnedObjectHolder {
@@ -38,4 +38,4 @@ class ReturnedObjectHolder {
     ReturnedObjectHolder** owner_ = nullptr;
 };
 
-}  // namespace voe::detail
+}  // namespace result::detail

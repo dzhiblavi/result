@@ -1,8 +1,8 @@
 OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/docs/
 INPUT                  = @CMAKE_SOURCE_DIR@/include/ @CMAKE_SOURCE_DIR@/src/ @CMAKE_SOURCE_DIR@/docs
 RECURSIVE              = YES
-PROJECT_NAME           = ValueOrError
-PROJECT_BRIEF          = "ValueOrError"
+PROJECT_NAME           = Result
+PROJECT_BRIEF          = "Result"
 
 EXTRACT_ALL          = YES
 CLASS_DIAGRAMS       = YES

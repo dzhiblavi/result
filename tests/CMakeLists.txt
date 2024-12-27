@@ -1,8 +1,8 @@
 include(GoogleTest)
 find_package(GTest REQUIRED)
 
-add_executable(value_or_error_test static_tests.cpp small_tests.cpp tests.cpp coro.cpp)
+add_executable(result_test static_tests.cpp small_tests.cpp tests.cpp coro.cpp)
 
-target_link_libraries(value_or_error_test PUBLIC value_or_error gtest::gtest)
+target_link_libraries(result_test PUBLIC result gtest::gtest)
 
-gtest_discover_tests(value_or_error_test)
+gtest_discover_tests(result_test)

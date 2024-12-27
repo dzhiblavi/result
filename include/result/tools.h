@@ -1,31 +1,31 @@
 #pragma once
 
-#include "voe/detail/constexpr_for.h"
-#include "voe/value_or_error.h"
+#include "result/detail/constexpr_for.h"
+#include "result/value_or_error.h"
 
 #include <tuple>
 
-namespace voe {
+namespace result {
 
 /**
- * @brief Combine two ValueOrError types
+ * @brief Combine two Result types
  *
  * For example, consider the following snippet:
  * @code
- * using A = ValueOrError<char, int, short>;
+ * using A = Result<char, int, short>;
  * A Foo() { ... }
  *
- * using B = ValueOrError<void, long, int>;
+ * using B = Result<void, long, int>;
  * B Bar() { ... }
  *
  * using C = Union<float, A, B>;
- * static_assert(std::is_same_v<C, ValueOrError<float, int, short, long>>);
+ * static_assert(std::is_same_v<C, Result<float, int, short, long>>);
  * @endcode
  */
 template <typename ValueType, typename... VoEOrErrorTypes>
 using Union = detail::TransferTemplate<
     detail::list::set::unite<detail::ErrorTypes<VoEOrErrorTypes>...>,
-    ValueOrError,
+    Result,
     ValueType>;
 
 namespace detail {
@@ -96,4 +96,4 @@ auto invert(VoEs&&... voes) noexcept {
     return invert(std::forward_as_tuple(voes...));
 }
 
-}  // namespace voe
+}  // namespace result

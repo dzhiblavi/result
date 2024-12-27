@@ -1,7 +1,7 @@
 #pragma once
 
-#include "voe/detail/templates/front.h"
-#include "voe/detail/type_list/list.h"
+#include "result/detail/templates/front.h"
+#include "result/detail/type_list/list.h"
 
 namespace util::tpl::impl {
 
