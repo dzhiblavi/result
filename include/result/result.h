@@ -168,6 +168,12 @@ class Result {
         return &self.value();
     }
 
+    template <typename U, typename Self>
+    [[nodiscard]] V valueOr(this Self& self, U&& default_value) {
+        return self.hasValue() ? std::forward<Self>(self).value()
+                               : static_cast<V>(std::forward<U>(default_value));
+    }
+
     template <typename Self>
     [[nodiscard]] decltype(auto) value(this Self&& self) {
         return std::forward<Self>(self).template as<V>();
