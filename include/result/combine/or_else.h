@@ -1,6 +1,5 @@
 #pragma once
 
-#include "result/combine/combinator.h"
 #include "result/detail/apply_to_template.h"
 #include "result/traits.h"
 
@@ -45,7 +44,7 @@ struct [[nodiscard]] OrElse {
 
 // Result<T, Es...> -> (Es... -> Result<T, Gs...>) -> Result<T, Gs...>
 template <typename F>
-Combinator auto orElse(F user) {
+auto orElse(F user) {
     return pipe::OrElse{std::move(user)};
 }
 

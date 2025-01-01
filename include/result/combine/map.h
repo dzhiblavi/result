@@ -1,6 +1,5 @@
 #pragma once
 
-#include "result/combine/combinator.h"
 #include "result/traits.h"
 
 namespace result {
@@ -34,7 +33,7 @@ struct [[nodiscard]] Map {
 
 // Result<T, Es...> -> (T -> U) -> Result<U, Es...>
 template <typename F>
-Combinator auto map(F user) {
+auto map(F user) {
     return pipe::Map{std::move(user)};
 }
 

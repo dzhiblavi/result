@@ -1,6 +1,5 @@
 #pragma once
 
-#include "result/combine/combinator.h"
 #include "result/detail/apply_to_template.h"
 #include "result/result.h"
 #include "result/traits.h"
@@ -45,7 +44,7 @@ struct [[nodiscard]] MapErr {
 
 // Result<T, Es...> -> (Es... -> Gs...) -> Result<T, Gs...>
 template <typename F>
-Combinator auto mapErr(F user) {
+auto mapErr(F user) {
     return pipe::MapErr{std::move(user)};
 }
 

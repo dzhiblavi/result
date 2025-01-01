@@ -1,6 +1,5 @@
 #pragma once
 
-#include "result/combine/combinator.h"
 #include "result/traits.h"
 #include "result/union.h"
 
@@ -36,7 +35,7 @@ struct [[nodiscard]] AndThen {
 
 // Result<T, Es...> -> (T -> Result<U, Gs...>) -> Result<U, Es..., Gs...>
 template <typename F>
-Combinator auto andThen(F user) {
+auto andThen(F user) {
     return pipe::AndThen{std::move(user)};
 }
 
