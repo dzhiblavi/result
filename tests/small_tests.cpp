@@ -205,6 +205,16 @@ TEST(Visit, Return) {
     EXPECT_EQ(x, 4);
 }
 
+TEST(Visit, NonCopyable) {
+    Result<Nocopy, float, int> r = Nocopy{};
+
+    std::move(r).safeVisit(detail::Overloaded{
+        [](val_tag_t, Nocopy x) { EXPECT_EQ(x.value, 1); },
+        [](int) { FAIL(); },
+        [](float) { FAIL(); },
+    });
+}
+
 TEST(SafeVisit, NoValueInErrors) {
     Result<int, float, char> r = makeError('2');
 

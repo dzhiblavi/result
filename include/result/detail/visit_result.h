@@ -22,6 +22,6 @@ struct VisitInvokeResult<Callable> {
 }  // namespace impl
 
 template <typename Callable, typename... Types>
-using VisitInvokeResult = typename impl::VisitInvokeResult<Callable, Types...>::type;
+using VisitInvokeResult = typename impl::VisitInvokeResult<Callable, Types&...>::type;
 
 }  // namespace result::detail
