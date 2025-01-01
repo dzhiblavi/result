@@ -284,6 +284,8 @@ class Result {
 
 struct Unit {};
 
+inline constexpr Unit unit{};  // NOLINT
+
 template <typename... Es>
 using Status = Result<Unit, Es...>;
 
