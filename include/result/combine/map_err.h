@@ -1,6 +1,7 @@
 #pragma once
 
 #include "result/detail/apply_to_template.h"
+#include "result/detail/overloaded.h"
 #include "result/result.h"
 #include "result/traits.h"
 

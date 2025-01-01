@@ -208,6 +208,16 @@ TEST(Visit, Return) {
 TEST(Visit, NonCopyable) {
     Result<Nocopy, float, int> r = Nocopy{};
 
+    std::move(r).visit(detail::Overloaded{
+        [](Nocopy x) { EXPECT_EQ(x.value, 1); },
+        [](int) { FAIL(); },
+        [](float) { FAIL(); },
+    });
+}
+
+TEST(SafeVisit, NonCopyable) {
+    Result<Nocopy, float, int> r = Nocopy{};
+
     std::move(r).safeVisit(detail::Overloaded{
         [](val_tag_t, Nocopy x) { EXPECT_EQ(x.value, 1); },
         [](int) { FAIL(); },

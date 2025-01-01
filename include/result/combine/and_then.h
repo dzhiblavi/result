@@ -1,5 +1,6 @@
 #pragma once
 
+#include "result/detail/overloaded.h"
 #include "result/traits.h"
 #include "result/union.h"
 

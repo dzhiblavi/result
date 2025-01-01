@@ -1,6 +1,7 @@
 #pragma once
 
 #include "result/coro/promise.h"
+#include "result/detail/overloaded.h"
 
 #include <coroutine>
 

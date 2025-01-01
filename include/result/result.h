@@ -1,7 +1,6 @@
 #pragma once
 
 #include "result/detail/min_sized_type.h"
-#include "result/detail/overloaded.h"
 #include "result/detail/propagate_category.h"
 #include "result/detail/vtables.h"
 
@@ -133,29 +132,35 @@ class Result {
 
     template <typename F, typename Self>
     decltype(auto) visit(this Self&& self, F&& f) {  // NOLINT
-        return VTable::visit(std::forward<F>(f), self.ptr(), self.index_);
+        return VTable::visit(
+            [&](auto& value) { return f(std::forward_like<Self>(value)); },
+            self.ptr(),
+            self.index_);
     }
 
     template <typename F, typename Self>
     decltype(auto) safeVisit(this Self&& self, F&& f) {  // NOLINT
-        return std::forward<Self>(self).visit([&]<typename U>(U& value) {
-            using T = std::decay_t<U>;
-            constexpr bool is_value = std::is_same_v<T, V>;
+        return VTable::visit(
+            [&]<typename U>(U& value) {
+                using T = std::decay_t<U>;
+                constexpr bool is_value = std::is_same_v<T, V>;
 
-            if constexpr (is_value) {
-                if constexpr (ValueInErrors) {
-                    if (self.index() == self.valueIndex()) {
-                        return f(val_tag, std::forward_like<Self>(value));
+                if constexpr (is_value) {
+                    if constexpr (ValueInErrors) {
+                        if (self.index() == self.valueIndex()) {
+                            return f(val_tag, std::forward_like<Self>(value));
+                        } else {
+                            return f(std::forward_like<Self>(value));
+                        }
                     } else {
-                        return f(std::forward_like<Self>(value));
+                        return f(val_tag, std::forward_like<Self>(value));
                     }
                 } else {
-                    return f(val_tag, std::forward_like<Self>(value));
+                    return f(std::forward_like<Self>(value));
                 }
-            } else {
-                return f(std::forward_like<Self>(value));
-            }
-        });
+            },
+            self.ptr(),
+            self.index_);
     }
 
     template <typename Self>
@@ -227,13 +232,14 @@ class Result {
             !std::is_same_v<detail::Impossible, typename From::value_type> &&
             !std::is_same_v<value_type, typename From::value_type>) {
             if (from.hasValue()) {
-                // from has value that is convertible to our value
+                // `from' has value of different type: convert-construct
                 new (ptr()) V(std::forward<R>(from).value());
                 set<detail::Value>();
                 return;
             }
         }
 
+        // `from' has an error or a value of the same type
         const auto from_index = from.index_;
         FromVTable::template construct<decltype(from)>(from.ptr(), ptr(), from.index_);
 
@@ -256,13 +262,14 @@ class Result {
             !std::is_same_v<detail::Impossible, typename From::value_type> &&
             !std::is_same_v<value_type, typename From::value_type>) {
             if (from.hasValue()) {
-                // from has value of different type. need to destroy anyhow
+                // `from' has value of different type: need to destroy current value/error
                 VTable::destroy(ptr(), index_);
                 new (this) Result(std::forward<R>(from));
                 return;
             }
         }
 
+        // `from' has an error or a value of the same type
         static constexpr auto index_map = tl::injection(typename From::Types{}, Types{});
         const auto from_index = from.index_;
         const auto this_index = index_map[from_index];
