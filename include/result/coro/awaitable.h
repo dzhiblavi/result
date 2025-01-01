@@ -19,12 +19,16 @@ struct ResultAwaitable {
         return std::move(object).value();
     }
 
-    template <typename U>
-    void await_suspend(std::coroutine_handle<ResultPromise<U, Es...>> h) {  // NOLINT
+    template <typename U, typename... Gs>
+    void await_suspend(std::coroutine_handle<ResultPromise<U, Gs...>> h) {  // NOLINT
         auto&& promise = h.promise();
         auto* owner = promise.owner;
         assert(owner);
-        owner->assign(std::move(object));
+
+        std::move(object).safeVisit(detail::Overloaded{
+            [](val_tag_t, auto) { std::unreachable(); },
+            [&](auto error) { owner->assign(makeError(std::move(error))); },
+        });
     }
 };
 
