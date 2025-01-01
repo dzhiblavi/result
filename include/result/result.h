@@ -164,8 +164,8 @@ class Result {
     }
 
     template <typename Self>
-    decltype(auto) operator->(this Self&& self) {
-        return std::forward<Self>(self).value();
+    decltype(auto) operator->(this Self& self) {
+        return &self.value();
     }
 
     template <typename Self>
