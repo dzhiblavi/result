@@ -140,12 +140,17 @@ class Result {
     decltype(auto) safeVisit(this Self&& self, F&& f) {  // NOLINT
         return std::forward<Self>(self).visit([&]<typename U>(U&& value) {
             using T = std::decay_t<U>;
+            constexpr bool is_value = std::is_same_v<T, V>;
 
-            if constexpr (std::is_same_v<T, V> && ValueInErrors) {
-                if (self.index() == self.valueIndex()) {
-                    return f(val_tag, std::forward<U>(value));
+            if constexpr (is_value) {
+                if constexpr (ValueInErrors) {
+                    if (self.index() == self.valueIndex()) {
+                        return f(val_tag, std::forward<U>(value));
+                    } else {
+                        return f(std::forward<U>(value));
+                    }
                 } else {
-                    return f(std::forward<U>(value));
+                    return f(val_tag, std::forward<U>(value));
                 }
             } else {
                 return f(std::forward<U>(value));

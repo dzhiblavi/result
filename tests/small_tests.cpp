@@ -192,7 +192,7 @@ TEST(SafeVisit, NoValueInErrors) {
     Result<int, float, char> r = makeError('2');
 
     r.safeVisit(detail::Overloaded{
-        [](int) { FAIL(); },
+        [](val_tag_t, int) { FAIL(); },
         [](float) { FAIL(); },
         [](char x) { EXPECT_EQ(x, '2'); },
     });
