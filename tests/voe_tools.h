@@ -1,103 +1,76 @@
 #pragma once
 
-#include "result/detail/templates.h"
-#include "result/detail/type_list.h"
+#include "result/detail/apply_to_template.h"
 #include "result/result.h"
+#include "result/traits.h"
+
+#include <type_list/list.h>
 
 namespace test {
 
-namespace list = ::util::list;
-namespace tpl = ::util::tpl;
+using namespace result;
 
-template <typename ValueType, typename... ErrorTypes>
-using Types = list::map<
-    tpl::transferTo<tpl::bindFront<::result::Result, ValueType>::template TN>::template Transfer,
-    list::set::powerset<list::list<ErrorTypes...>>>;
+template <typename... Es>
+using AllErrorSubsets = tl::Powerset<tl::List<Es...>>;
 
-template <typename ValueType, typename Result>
-struct HasAnyErrorPredicate
-    : public std::negation<std::is_same<::result::Result<ValueType>, Result>> {};
+template <typename V>
+struct ResultErrorsMapper {
+    template <typename ErrorsList>
+    using Map = result::detail::ApplyToTemplate<Result, tl::PushFront<ErrorsList, V>>;
+};
 
-template <typename ValueType, typename... ErrorTypes>
-using TypesWithErrors = list::filter<
-    Types<ValueType, ErrorTypes...>,
-    tpl::bindFront<HasAnyErrorPredicate, ValueType>::template T1>;
+template <typename V, typename... Es>
+using Types = tl::Map<ResultErrorsMapper<V>, AllErrorSubsets<Es...>>;
 
-template <typename ResultPair>
-struct ConvertiblePredicate;
+struct HasAnyErrorPredicate {
+    template <typename R>
+    static constexpr bool test() noexcept {
+        return !tl::Empty<ErrorTypesOf<R>>;
+    }
+};
 
-template <typename Result1, typename Result2>
-struct ConvertiblePredicate<list::list<Result1, Result2>>
-    : public result::detail::ConvertiblePredicate<
-          result::detail::TransferTemplate<Result1, result::detail::list::list>,
-          result::detail::TransferTemplate<Result2, result::detail::list::list>> {};
+template <typename V, typename... Es>
+using TypesWithErrors = tl::Filter<HasAnyErrorPredicate, Types<V, Es...>>;
 
-template <typename ValueType, typename... ErrorTypes>
-requires(!std::is_same_v<void, ValueType>)
-using AllConvertiblePairs = list::filter<
-    list::concat<
-        list::set::product<Types<ValueType, ErrorTypes...>, Types<ValueType, ErrorTypes...>>,
-        list::set::product<Types<void, ErrorTypes...>, Types<ValueType, ErrorTypes...>>,
-        list::set::product<Types<ValueType, ErrorTypes...>, Types<void, ErrorTypes...>>>,
-    ConvertiblePredicate>;
+struct ConvertiblePredicate {
+    template <typename Rs>
+    static constexpr bool test() noexcept {
+        return tl::apply(
+            []<typename R1, typename R2>(tl::Type<R1>, tl::Type<R2>) {
+                return std::is_convertible_v<R1, R2>;
+            },
+            Rs{});
+    }
+};
+
+template <typename V, typename... Es>
+using AllConvertiblePairs =
+    tl::Filter<ConvertiblePredicate, tl::Prod<Types<V, Es...>, Types<V, Es...>>>;
 
 template <typename Functor, typename... Types>
-void InstantiateAndCall(list::list<Types...>) {
+void instantiateAndCall(tl::List<Types...>) {
     (Functor::call(static_cast<Types*>(nullptr)), ...);
 };
 
 namespace unit {
 
-static_assert(std::is_same_v<Types<void>, list::list<::result::VoidOrError<>>>);
-static_assert(
-    std::is_same_v<Types<void, int>, list::list<result::VoidOrError<>, result::VoidOrError<int>>>);
-static_assert(std::is_same_v<
-              Types<void, int, float>,
-              list::list<
-                  result::VoidOrError<>,
-                  result::VoidOrError<float>,
-                  result::VoidOrError<int>,
-                  result::VoidOrError<int, float>>>);
-static_assert(std::is_same_v<Types<int>, list::list<result::Result<int>>>);
-static_assert(
-    std::is_same_v<Types<int, float>, list::list<result::Result<int>, result::Result<int, float>>>);
-static_assert(std::is_same_v<
-              Types<void, int, float>,
-              list::list<
-                  result::VoidOrError<>,
-                  result::VoidOrError<float>,
-                  result::VoidOrError<int>,
-                  result::VoidOrError<int, float>>>);
+static_assert(std::is_same_v<Types<int>, tl::List<Result<int>>>);
+static_assert(std::is_same_v<Types<float, int>, tl::List<Result<float, int>, Result<float>>>);
 
-static_assert(std::is_same_v<TypesWithErrors<void>, list::list<>>);
-static_assert(std::is_same_v<TypesWithErrors<void, int>, list::list<result::VoidOrError<int>>>);
-static_assert(std::is_same_v<
-              TypesWithErrors<void, int, float>,
-              list::list<
-                  result::VoidOrError<float>,
-                  result::VoidOrError<int>,
-                  result::VoidOrError<int, float>>>);
-static_assert(std::is_same_v<TypesWithErrors<int>, list::list<>>);
-static_assert(std::is_same_v<TypesWithErrors<int, float>, list::list<result::Result<int, float>>>);
-static_assert(std::is_same_v<
-              TypesWithErrors<void, int, float>,
-              list::list<
-                  result::VoidOrError<float>,
-                  result::VoidOrError<int>,
-                  result::VoidOrError<int, float>>>);
+static_assert(
+    std::is_same_v<
+        Types<int, int, float>,
+        tl::List<Result<int, int, float>, Result<int, int>, Result<int, float>, Result<int>>>);
+
+static_assert(std::is_same_v<TypesWithErrors<int>, tl::List<>>);
+static_assert(std::is_same_v<TypesWithErrors<int, int>, tl::List<Result<int, int>>>);
 
 static_assert(std::is_same_v<
               AllConvertiblePairs<int, char>,
-              list::list<
-                  list::list<result::Result<int>, result::Result<int>>,
-                  list::list<result::Result<int>, result::Result<int, char>>,
-                  list::list<result::Result<int, char>, result::Result<int, char>>,
-                  list::list<result::Result<void>, result::Result<int>>,
-                  list::list<result::Result<void>, result::Result<int, char>>,
-                  list::list<result::Result<void, char>, result::Result<int, char>>,
-                  list::list<result::Result<int>, result::Result<void>>,
-                  list::list<result::Result<int>, result::Result<void, char>>,
-                  list::list<result::Result<int, char>, result::Result<void, char>>>>);
+              tl::List<
+                  tl::List<Result<int, char>, Result<int, char>>,
+                  tl::List<Result<int>, Result<int, char>>,
+                  tl::List<Result<int>, Result<int>>>>);
 
 }  // namespace unit
 

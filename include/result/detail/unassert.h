@@ -1,1 +1,0 @@
-#undef RESULT_ASSERT

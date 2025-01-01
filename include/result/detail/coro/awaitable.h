@@ -11,12 +11,12 @@ struct ResultAwaitable {
     Result<T, Es...> object;
 
     bool await_ready() noexcept {  // NOLINT
-        return !object.HasAnyError();
+        return !object.hasAnyError();
     }
 
     T await_resume() {  // NOLINT
-        assert(!object.HasAnyError());
-        return std::move(object).GetValue();
+        assert(!object.hasAnyError());
+        return std::move(object).getValue();
     }
 
     template <typename U>

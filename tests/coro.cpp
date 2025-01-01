@@ -12,12 +12,12 @@ Res<int> just(int x) {
 }
 
 Res<int> faulty(std::string err) {
-    co_return MakeError(err);
+    co_return makeError(err);
 }
 
 TEST(Coro, CoJust) {
     auto x = just(1);
-    EXPECT_EQ(x.GetValue(), 1);
+    EXPECT_EQ(x.getValue(), 1);
 }
 
 TEST(Coro, CoJustLinear) {
@@ -27,8 +27,8 @@ TEST(Coro, CoJustLinear) {
         co_return x + y;
     }();
 
-    EXPECT_TRUE(x.HasValue());
-    EXPECT_EQ(x.GetValue(), 3);
+    EXPECT_TRUE(x.hasValue());
+    EXPECT_EQ(x.getValue(), 3);
 }
 
 TEST(Coro, Faulty) {
@@ -38,9 +38,9 @@ TEST(Coro, Faulty) {
         co_return x + y;
     }();
 
-    EXPECT_FALSE(x.HasValue());
-    EXPECT_TRUE(x.HasAnyError());
-    EXPECT_EQ(x.GetError<std::string>(), "hello");
+    EXPECT_FALSE(x.hasValue());
+    EXPECT_TRUE(x.hasAnyError());
+    EXPECT_EQ(x.getError<std::string>(), "hello");
 }
 
 }  // namespace result

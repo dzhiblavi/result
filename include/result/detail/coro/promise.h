@@ -4,6 +4,7 @@
 #include "result/result.h"
 
 #include <coroutine>
+#include <exception>
 
 namespace result::detail {
 

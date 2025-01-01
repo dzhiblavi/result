@@ -1,154 +1,188 @@
 #pragma once
 
-#include "result/detail/helpers.h"
 #include "result/detail/propagate_const.h"
+#include "result/detail/ref_selector.h"
+#include "result/detail/visit_result.h"
 
 #include <type_traits>
+#include <utility>
 
-namespace result::vtables {
-
-template <bool IsTriviallyDestructible, typename Type>
-struct DestructorFunctor {
-    static constexpr void Call(void* ptr) noexcept {
-        static_cast<Type*>(ptr)->~Type();
-    }
-};
-
-template <typename Type>
-struct DestructorFunctor<true, Type> {
-    static constexpr void Call(void*) noexcept {}
-};
+namespace result::detail {
 
 template <typename... Types>
 struct DestructorFunctorArray {
-    using DestructorFunction = void (*)(void*) noexcept;
+    static constexpr void call(void* ptr, size_t index) noexcept {
+        Array[index](ptr);
+    }
 
-    static constexpr DestructorFunction array[sizeof...(Types)] = {
-        DestructorFunctor<std::is_trivially_destructible_v<Types>, Types>::Call...,
+ private:
+    template <typename Type>
+    struct Call {
+        static constexpr void call(void* ptr) noexcept {
+            if constexpr (!std::is_trivially_destructible_v<Type>) {
+                static_cast<Type*>(ptr)->~Type();
+            }
+        }
     };
 
-    static constexpr void Call(void* ptr, size_t index) noexcept {
-        array[index](ptr);
-    }
-};
+    using Fn = void (*)(void*);
 
-template <typename Callable, typename Type>
-struct CallableFunctor {
-    using PointerType = util::hlp::propagateConst<Type, void>;
-
-    static constexpr decltype(auto) Call(Callable callable, PointerType* ptr) {
-        return std::forward<Callable>(callable)(*static_cast<Type*>(ptr));
-    }
+    static constexpr Fn Array[sizeof...(Types)] = {
+        Call<Types>::call...,
+    };
 };
 
 template <typename FromVoid, typename Callable, typename... Types>
 struct CallableFunctorArray {
     using ResultType = detail::VisitInvokeResult<Callable, Types...>;
-    using CallFunction = ResultType (*)(Callable, void*);
-
-    static constexpr CallFunction array[sizeof...(Types)] = {
-        CallableFunctor<Callable, util::hlp::propagateConst<FromVoid, Types>>::Call...};
 
     template <typename F>
-    static constexpr void Call(F&& func, FromVoid* ptr, size_t index) {
-        array[index](std::forward<F>(func), ptr);
+    static constexpr ResultType call(F&& func, FromVoid* ptr, size_t index) {
+        return Array[index](std::forward<F>(func), ptr);
     }
-};
 
-template <typename Type>
-struct CopyConstructorFunctor {
-    using FromType = util::hlp::propagateConst<Type, void>;
+ private:
+    template <typename Type>
+    struct Call {
+        using PointerType = propagateConst<Type, void>;
 
-    static constexpr void Call(FromType* from, void* to) noexcept(
-        std::is_nothrow_copy_constructible_v<Type>) {
-        if constexpr (!std::is_same_v<void, std::decay_t<Type>>) {
-            new (to) std::remove_cv_t<Type>(*static_cast<Type*>(from));
+        static constexpr decltype(auto) call(Callable callable, PointerType* ptr) {
+            return std::forward<Callable>(callable)(*static_cast<Type*>(ptr));
         }
-    }
+    };
+
+    using Fn = ResultType (*)(Callable, FromVoid*);
+
+    static constexpr Fn Array[sizeof...(Types)] = {
+        Call<propagateConst<FromVoid, Types>>::call...,
+    };
 };
 
 template <typename FromVoid, typename... Types>
 struct CopyConstructorFunctorArray {
-    using CopyConstructorFunction = void (*)(FromVoid*, void*);
-
-    static constexpr CopyConstructorFunction array[sizeof...(Types)] = {
-        CopyConstructorFunctor<util::hlp::propagateConst<FromVoid, Types>>::Call...};
-
-    static constexpr void Call(FromVoid* from, void* to, size_t index) {
-        array[index](from, to);
+    static constexpr void call(FromVoid* from, void* to, size_t index) {
+        Array[index](from, to);
     }
-};
 
-template <typename Type>
-struct CopyAssignmentFunctor {
-    using FromType = util::hlp::propagateConst<Type, void>;
+ private:
+    template <typename Type>
+    struct Call {
+        using FromType = propagateConst<Type, void>;
 
-    static constexpr void Call(FromType* from, void* to) noexcept(
-        std::is_nothrow_copy_assignable_v<Type>) {
-        if constexpr (!std::is_same_v<void, std::decay_t<Type>>) {
-            *static_cast<std::remove_cv_t<Type>*>(to) = *static_cast<Type*>(from);
+        static constexpr void call(FromType* from, void* to) noexcept(
+            std::is_nothrow_copy_constructible_v<Type>) {
+            new (to) std::remove_cv_t<Type>(*static_cast<Type*>(from));
         }
-    }
+    };
+
+    using Fn = void (*)(FromVoid*, void*);
+
+    static constexpr Fn Array[sizeof...(Types)] = {
+        Call<propagateConst<FromVoid, Types>>::call...,
+    };
 };
 
 template <typename FromVoid, typename... Types>
 struct CopyAssignmentFunctorArray {
-    using CopyAssignmentFunction = void (*)(FromVoid*, void*);
-
-    static constexpr CopyAssignmentFunction array[sizeof...(Types)] = {
-        CopyAssignmentFunctor<util::hlp::propagateConst<FromVoid, Types>>::Call...};
-
-    static constexpr void Call(FromVoid* from, void* to, size_t index) {
-        array[index](from, to);
+    static constexpr void call(FromVoid* from, void* to, size_t index) {
+        Array[index](from, to);
     }
-};
 
-template <typename Type>
-struct MoveConstructorFunctor {
-    using FromType = util::hlp::propagateConst<Type, void>;
+ private:
+    template <typename Type>
+    struct Call {
+        using FromType = propagateConst<Type, void>;
 
-    static constexpr void Call(FromType* from, void* to) noexcept(
-        std::is_nothrow_move_constructible_v<Type>) {
-        if constexpr (!std::is_same_v<void, std::decay_t<Type>>) {
-            new (to) std::remove_cv_t<Type>(std::move(*static_cast<Type*>(from)));
+        static constexpr void call(FromType* from, void* to) noexcept(
+            std::is_nothrow_copy_assignable_v<Type>) {
+            *static_cast<std::remove_cv_t<Type>*>(to) = *static_cast<Type*>(from);
         }
-    }
+    };
+
+    using Fn = void (*)(FromVoid*, void*);
+
+    static constexpr Fn Array[sizeof...(Types)] = {
+        Call<propagateConst<FromVoid, Types>>::call...,
+    };
 };
 
 template <typename FromVoid, typename... Types>
 struct MoveConstructorFunctorArray {
-    using MoveConstructorFunction = void (*)(FromVoid*, void*);
-
-    static constexpr MoveConstructorFunction array[sizeof...(Types)] = {
-        MoveConstructorFunctor<util::hlp::propagateConst<FromVoid, Types>>::Call...};
-
-    static constexpr void Call(FromVoid* from, void* to, size_t index) {
-        array[index](from, to);
+    static constexpr void call(FromVoid* from, void* to, size_t index) {
+        Array[index](from, to);
     }
-};
 
-template <typename Type>
-struct MoveAssignmentFunctor {
-    using FromType = util::hlp::propagateConst<Type, void>;
+ private:
+    template <typename Type>
+    struct Call {
+        using FromType = propagateConst<Type, void>;
 
-    static constexpr void Call(FromType* from, void* to) noexcept(
-        std::is_nothrow_move_assignable_v<Type>) {
-        if constexpr (!std::is_same_v<void, std::decay_t<Type>>) {
-            *static_cast<std::remove_cv_t<Type>*>(to) = std::move(*static_cast<Type*>(from));
+        static constexpr void call(FromType* from, void* to) noexcept(
+            std::is_nothrow_move_constructible_v<Type>) {
+            new (to) std::remove_cv_t<Type>(std::move(*static_cast<Type*>(from)));
         }
-    }
+    };
+
+    using Fn = void (*)(FromVoid*, void*);
+
+    static constexpr Fn Array[sizeof...(Types)] = {
+        Call<propagateConst<FromVoid, Types>>::call...,
+    };
 };
 
 template <typename FromVoid, typename... Types>
 struct MoveAssignmentFunctorArray {
-    using MoveAssignmentFunction = void (*)(FromVoid*, void*);
+    static constexpr void call(FromVoid* from, void* to, size_t index) {
+        Array[index](from, to);
+    }
 
-    static constexpr MoveAssignmentFunction array[sizeof...(Types)] = {
-        MoveAssignmentFunctor<util::hlp::propagateConst<FromVoid, Types>>::Call...};
+ private:
+    template <typename Type>
+    struct Call {
+        using FromType = propagateConst<Type, void>;
 
-    static constexpr void Call(FromVoid* from, void* to, size_t index) {
-        array[index](from, to);
+        static constexpr void call(FromType* from, void* to) noexcept(
+            std::is_nothrow_move_assignable_v<Type>) {
+            *static_cast<std::remove_cv_t<Type>*>(to) = std::move(*static_cast<Type*>(from));
+        }
+    };
+
+    using Fn = void (*)(FromVoid*, void*);
+
+    static constexpr Fn Array[sizeof...(Types)] = {
+        Call<propagateConst<FromVoid, Types>>::call...,
+    };
+};
+
+template <typename T>
+concept SelfPtr = std::is_same_v<std::decay_t<T>, void>;
+
+template <typename... Ts>
+struct VTable {
+    static constexpr void destroy(void* self, size_t index) {
+        DestructorFunctorArray<Ts...>::call(self, index);
+    }
+
+    template <typename F, SelfPtr S>
+    static constexpr decltype(auto) visit(F&& f, S* self, size_t index) {
+        CallableFunctorArray<S, F, Ts...>::call(std::forward<F>(f), self, index);
+    }
+
+    template <typename Ref, SelfPtr S>
+    static constexpr void construct(S* from, void* to, size_t index) {
+        using Copy = CopyConstructorFunctorArray<S, Ts...>;
+        using Move = MoveConstructorFunctorArray<S, Ts...>;
+
+        RefSelector<Ref, Copy, Move>::call(from, to, index);
+    }
+
+    template <typename Ref, SelfPtr S>
+    static constexpr void assign(S* from, void* to, size_t index) {
+        using Copy = CopyAssignmentFunctorArray<S, Ts...>;
+        using Move = MoveAssignmentFunctorArray<S, Ts...>;
+
+        RefSelector<Ref, Copy, Move>::call(from, to, index);
     }
 };
 
-}  // namespace result::vtables
+}  // namespace result::detail

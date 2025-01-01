@@ -27,32 +27,32 @@ using Op = std::pair<Type, int>;
 
 struct OpCollector;
 
-namespace detail_ {
+namespace detail {
 
-static OpCollector* op_collector_{nullptr};
+static OpCollector* op_collector_{nullptr};  // NOLINT
 
-}  // namespace detail_
+}  // namespace detail
 
 struct OpCollector {
     OpCollector() noexcept {
-        assert(detail_::op_collector_ == nullptr);
-        detail_::op_collector_ = this;
+        assert(detail::op_collector_ == nullptr);
+        detail::op_collector_ = this;
     }
 
     ~OpCollector() noexcept {
-        assert(detail_::op_collector_ == this);
-        detail_::op_collector_ = nullptr;
+        assert(detail::op_collector_ == this);
+        detail::op_collector_ = nullptr;
     }
 
-    static void Push(Type type, int index) noexcept {
-        if (detail_::op_collector_ == nullptr) {
+    static void push(Type type, int index) noexcept {
+        if (detail::op_collector_ == nullptr) {
             return;
         }
-        detail_::op_collector_->ops.emplace_back(type, index);
+        detail::op_collector_->ops.emplace_back(type, index);
     }
 
     template <typename... Args>
-    bool Equal(Args&&... args) noexcept {
+    bool equal(const Args&... args) noexcept {
         std::array<Op, sizeof...(args)> compare_to{args...};
 
         bool equal = std::equal(ops.begin(), ops.end(), compare_to.begin(), compare_to.end());
@@ -61,14 +61,14 @@ struct OpCollector {
         }
 
         std::cerr << "Operation order comparison failed\n"
-                  << "\tExpected: " << ToString(compare_to) << "\n"
-                  << "\tFound:    " << ToString(ops) << std::endl;
+                  << "\tExpected: " << toString(compare_to) << "\n"
+                  << "\tFound:    " << toString(ops) << std::endl;
 
         return false;
     }
 
     template <typename C>
-    std::string ToString(const C& c) {
+    std::string toString(const C& c) {
         std::stringstream ss;
         ss << "[";
         for (const auto& [type, idx] : c) {
@@ -86,36 +86,45 @@ struct RememberLastOp {
     static constexpr int Idx = Index;
 
     RememberLastOp() {
-        OpCollector::Push(Type::Create, Index);
+        OpCollector::push(Type::Create, Index);
     }
+
     ~RememberLastOp() {
-        OpCollector::Push(Type::Destroy, Index);
+        OpCollector::push(Type::Destroy, Index);
     }
+
     RememberLastOp(RememberLastOp&) {
-        OpCollector::Push(Type::CONSTRUCT_COPY, Index);
+        OpCollector::push(Type::CONSTRUCT_COPY, Index);
     }
+
     RememberLastOp(const RememberLastOp&) {
-        OpCollector::Push(Type::CONSTRUCT_COPY_CONST, Index);
+        OpCollector::push(Type::CONSTRUCT_COPY_CONST, Index);
     }
+
     RememberLastOp(RememberLastOp&&) noexcept {
-        OpCollector::Push(Type::CONSTRUCT_MOVE, Index);
+        OpCollector::push(Type::CONSTRUCT_MOVE, Index);
     }
+
     RememberLastOp(const RememberLastOp&&) noexcept {
-        OpCollector::Push(Type::CONSTRUCT_MOVE_CONST, Index);
+        OpCollector::push(Type::CONSTRUCT_MOVE_CONST, Index);
     }
-    void operator=(RememberLastOp&) {
-        OpCollector::Push(Type::ASSIGN_COPY, Index);
+
+    RememberLastOp& operator=(RememberLastOp&) {  // NOLINT
+        OpCollector::push(Type::ASSIGN_COPY, Index);
+        return *this;
     }
-    void operator=(const RememberLastOp&) {
-        OpCollector::Push(Type::ASSIGN_COPY_CONST, Index);
+
+    RememberLastOp& operator=(const RememberLastOp&) {
+        OpCollector::push(Type::ASSIGN_COPY_CONST, Index);
+        return *this;
     }
-    void operator=(RememberLastOp&&) noexcept {
-        OpCollector::Push(Type::ASSIGN_MOVE, Index);
+
+    RememberLastOp& operator=(RememberLastOp&&) noexcept {
+        OpCollector::push(Type::ASSIGN_MOVE, Index);
+        return *this;
     }
-    void operator=(const RememberLastOp&&) noexcept {
-        OpCollector::Push(Type::ASSIGN_MOVE_CONST, Index);
-    }
-    constexpr int GetIndex() const noexcept {
+
+    constexpr int getIndex() const noexcept {
         return Index;
     }
 };

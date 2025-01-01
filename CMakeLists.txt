@@ -12,6 +12,11 @@ include(./cmake/Ccache.cmake)
 include(./cmake/CheckCompiler.cmake)
 include(./cmake/Development.cmake)
 include(./cmake/Sanitizers.cmake)
+
+# Third party libraries
+include(./cmake/thirdparty/type_list.cmake)
+
+# Project compile settings
 include(./cmake/CompileOptions.cmake)
 include(./cmake/Werror.cmake)
 

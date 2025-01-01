@@ -2,7 +2,7 @@
 
 #include <type_traits>
 
-namespace util::hlp {
+namespace result::detail {
 
 namespace impl {
 
@@ -14,9 +14,9 @@ struct PropagateConst;
 template <typename From, typename To>
 using propagateConst = typename impl::PropagateConst<From, To>::type;
 
-}  // namespace util::hlp
+}  // namespace result::detail
 
-namespace util::hlp::impl {
+namespace result::detail::impl {
 
 template <typename From, typename To>
 struct PropagateConst : public std::remove_const<To> {};
@@ -36,4 +36,4 @@ struct PropagateConst<const From&&, To> {
     using type = const To;
 };
 
-}  // namespace util::hlp::impl
+}  // namespace result::detail::impl

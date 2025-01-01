@@ -1,298 +1,162 @@
-#include "result/tools.h"
 #include "result/result.h"
+
+#include "./remember_op.h"
 
 #include <gtest/gtest.h>
 
 namespace result {
 
-TEST(SmallDefaultConstructorTest, Correctness) {
-    {
-        Result<void> voe;
-        EXPECT_TRUE(voe.IsEmpty());
-        EXPECT_FALSE(voe.HasAnyError());
-        EXPECT_FALSE(voe.HasValue());
-    }
-    {
-        Result<int, char> voe;
-        EXPECT_TRUE(voe.IsEmpty());
-        EXPECT_FALSE(voe.HasAnyError());
-        EXPECT_FALSE(voe.HasValue());
-        EXPECT_DEATH(voe.GetValue(), "");
-    }
+struct Nocopy {
+    Nocopy() = default;
+    Nocopy(const Nocopy&) = delete;
+    Nocopy& operator=(const Nocopy&) = delete;
+    Nocopy(Nocopy&&) = default;
+    Nocopy& operator=(Nocopy&&) = default;
+
+    int value = 1;
+};
+
+TEST(DefaultConstruct, Correct) {
+    Result<int, float> r;
+
+    EXPECT_TRUE(r.hasValue());
+    EXPECT_FALSE(r.hasAnyError());
+    EXPECT_FALSE(r.hasError<float>());
+    EXPECT_EQ(0, r.getValue());
 }
 
-TEST(SmallValueConstructorTest, Correctness) {
-    Result<int> voe{10};
-    EXPECT_FALSE(voe.IsEmpty());
-    EXPECT_FALSE(voe.HasAnyError());
-    EXPECT_TRUE(voe.HasValue());
-    EXPECT_EQ(10, voe.GetValue());
+TEST(DefaultConstruct, NonCopyable) {
+    Result<Nocopy, float> r;
+
+    EXPECT_TRUE(r.hasValue());
+    EXPECT_FALSE(r.hasAnyError());
+    EXPECT_FALSE(r.hasError<float>());
+    EXPECT_EQ(1, r.getValue().value);
+    [[maybe_unused]] auto x = std::move(r).getValue();
 }
 
-TEST(SmallConvertConstructorTest, FromEmpty) {
-    Result<int, char> from;
-    Result<int, short, char> voe(from);
-    EXPECT_TRUE(voe.IsEmpty());
-    EXPECT_FALSE(voe.HasAnyError());
-    EXPECT_FALSE(voe.HasValue());
+TEST(MakeError, Correct) {
+    Result<int, float, char> r = makeError(1.f);
+
+    EXPECT_FALSE(r.hasValue());
+    EXPECT_TRUE(r.hasAnyError());
+    EXPECT_TRUE(r.hasError<float>());
+    EXPECT_FALSE(r.hasError<char>());
+    EXPECT_EQ(1.f, r.getError<float>());
 }
 
-TEST(SmallConvertConstructorTest, FromValue) {
-    Result<int, char> from{10};
-    Result<int, short, char> voe(from);
-    EXPECT_FALSE(voe.IsEmpty());
-    EXPECT_FALSE(voe.HasAnyError());
-    EXPECT_TRUE(voe.HasValue());
-    EXPECT_EQ(10, voe.GetValue());
+TEST(MakeError, NonCopyable) {
+    Result<int, Nocopy> r = makeError(Nocopy{});
+
+    EXPECT_FALSE(r.hasValue());
+    EXPECT_TRUE(r.hasAnyError());
+    EXPECT_TRUE(r.hasError<Nocopy>());
+    EXPECT_EQ(1, r.getError<Nocopy>().value);
+    [[maybe_unused]] auto e = std::move(r).getError<Nocopy>();
 }
 
-TEST(SmallConvertConstructorTest, FromError) {
-    Result<int, char> from{MakeError<char>('a')};
-    Result<int, short, char> voe(from);
-    EXPECT_FALSE(voe.IsEmpty());
-    EXPECT_TRUE(voe.HasAnyError());
-    EXPECT_FALSE(voe.HasError<short>());
-    EXPECT_TRUE(voe.HasError<char>());
-    EXPECT_FALSE(voe.HasValue());
-    EXPECT_EQ('a', voe.GetError<char>());
+TEST(ValueConstruct, Correct) {
+    Result<int, int> r = 10;
+
+    EXPECT_TRUE(r.hasValue());
+    EXPECT_FALSE(r.hasAnyError());
+    EXPECT_FALSE(r.hasError<int>());
+    EXPECT_EQ(10, r.getValue());
 }
 
-TEST(SmallConvertConstructorDeathTest, ValueIsDropped) {
-    Result<int, char> from{10};
-    EXPECT_DEATH(((void)Result<void, char>(from)), "trying to drop a value");
+TEST(CopyConstruct, Value) {
+    Result<int, int> r = 10;
+    Result<int, char, int> u = r;
+
+    EXPECT_TRUE(u.hasValue());
+    EXPECT_EQ(10, u.getValue());
 }
 
-TEST(SmallConvertAssignTest, FromEmpty) {
-    {
-        Result<int, short, char> to;
-        Result<int, char> from;
-        to = from;
-        EXPECT_TRUE(to.IsEmpty());
-        EXPECT_FALSE(to.HasAnyError());
-        EXPECT_FALSE(to.HasValue());
-    }
-    {
-        Result<int, short, char> to{10};
-        Result<int, char> from;
-        to = from;
-        EXPECT_TRUE(to.IsEmpty());
-        EXPECT_FALSE(to.HasAnyError());
-        EXPECT_FALSE(to.HasValue());
-    }
-    {
-        Result<int, short, char> to{MakeError<short>(8)};
-        Result<int, char> from;
-        to = from;
-        EXPECT_TRUE(to.IsEmpty());
-        EXPECT_FALSE(to.HasAnyError());
-        EXPECT_FALSE(to.HasValue());
-    }
+TEST(CopyConstruct, Error) {
+    Result<int, float> r = makeError(1.f);
+    Result<int, char, float> u = r;
+
+    EXPECT_TRUE(u.hasError<float>());
+    EXPECT_EQ(1.f, u.getError<float>());
 }
 
-TEST(SmallConvertAssignTest, FromValue) {
-    {
-        Result<int, short, char> to;
-        Result<int, char> from{10};
-        to = from;
-        EXPECT_TRUE(to.HasValue());
-        EXPECT_EQ(10, to.GetValue());
-    }
-    {
-        Result<int, short, char> to{-239};
-        Result<int, char> from{10};
-        to = from;
-        EXPECT_TRUE(to.HasValue());
-        EXPECT_EQ(10, to.GetValue());
-    }
-    {
-        Result<int, short, char> to{MakeError<short>(8)};
-        Result<int, char> from{10};
-        to = from;
-        EXPECT_TRUE(to.HasValue());
-        EXPECT_EQ(10, to.GetValue());
-    }
+TEST(CopyConstruct, ErrorNonCopyable) {
+    Result<int, Nocopy> r = makeError(Nocopy{});
+    Result<int, char, Nocopy> u = std::move(r);
+
+    EXPECT_TRUE(u.hasError<Nocopy>());
+    EXPECT_EQ(1, u.getError<Nocopy>().value);
 }
 
-TEST(SmallConvertAssignTest, FromError) {
-    {
-        Result<int, short, char> to;
-        Result<int, char> from{MakeError<char>('a')};
-        to = from;
-        EXPECT_TRUE(to.HasError<char>());
-        EXPECT_EQ('a', to.GetError<char>());
-    }
-    {
-        Result<int, short, char> to{-239};
-        Result<int, char> from{MakeError<char>('a')};
-        to = from;
-        EXPECT_TRUE(to.HasError<char>());
-        EXPECT_EQ('a', to.GetError<char>());
-    }
-    {
-        Result<int, short, char> to{MakeError<short>(8)};
-        Result<int, char> from{MakeError<char>('a')};
-        to = from;
-        EXPECT_TRUE(to.HasError<char>());
-        EXPECT_EQ('a', to.GetError<char>());
-    }
+TEST(Assign, ValueToValue) {
+    Result<int, float> r = 1;
+    r = 2;
+
+    EXPECT_TRUE(r.hasValue());
+    EXPECT_EQ(2, r.getValue());
 }
 
-Result<int, const char*> ReturnValue() {
-    return 42;
+TEST(Assign, ValueToError) {
+    Result<int, float> r = makeError(1.f);
+    r = 2;
+
+    EXPECT_TRUE(r.hasValue());
+    EXPECT_EQ(2, r.getValue());
 }
 
-TEST(ResultTest, ValueOnReturn) {
-    auto val = ReturnValue();
-    EXPECT_FALSE(val.IsEmpty());
-    EXPECT_FALSE(val.HasAnyError());
-    EXPECT_FALSE(val.HasError<const char*>());
-    EXPECT_TRUE(val.HasValue());
-    EXPECT_EQ(val.GetValue(), 42);
-    EXPECT_EQ(std::move(val).GetValue(), 42);
-    EXPECT_EQ(ReturnValue().GetValue(), 42);
+TEST(Assign, ErrorToValue) {
+    Result<int, float> r = 1;
+    r = makeError(1.f);
 
-    const auto cval = ReturnValue();
-    EXPECT_FALSE(cval.IsEmpty());
-    EXPECT_FALSE(cval.HasAnyError());
-    EXPECT_FALSE(cval.HasError<const char*>());
-    EXPECT_TRUE(cval.HasValue());
-    EXPECT_EQ(cval.GetValue(), 42);
+    EXPECT_TRUE(r.hasError<float>());
+    EXPECT_EQ(1.f, r.getError<float>());
 }
 
-Result<int, const char*> ReturnEmpty() {
-    Result<int, const char*> val;
-    return val;
+TEST(Assign, ErrorToError) {
+    Result<int, float> r = makeError(2.f);
+    r = makeError(1.f);
+
+    EXPECT_TRUE(r.hasError<float>());
+    EXPECT_EQ(1.f, r.getError<float>());
 }
 
-TEST(ResultTest, ReturnEmpty) {
-    auto val = ReturnEmpty();
-    EXPECT_TRUE(val.IsEmpty());
-    EXPECT_FALSE(val.HasAnyError());
-    EXPECT_FALSE(val.HasError<const char*>());
-    EXPECT_FALSE(val.HasValue());
+TEST(Assign, ValueToErrorNonCopyable) {
+    Result<int, Nocopy> r = makeError(Nocopy{});
+    r = 1;
+
+    EXPECT_TRUE(r.hasValue());
+    EXPECT_EQ(1, r.getValue());
 }
 
-Result<int, const char*> ReturnError() {
-    return MakeError<const char*>("some error");
+TEST(Assign, ErrorToValueNonCopyable) {
+    Result<Nocopy, int> r = Nocopy{};
+    r = makeError(1);
+
+    EXPECT_TRUE(r.hasError<int>());
+    EXPECT_EQ(1, r.getError<int>());
 }
 
-TEST(ResultTest, ReturnError) {
-    auto val = ReturnError();
-    EXPECT_FALSE(val.IsEmpty());
-    EXPECT_TRUE(val.HasAnyError());
-    EXPECT_TRUE(val.HasError<const char*>());
-    EXPECT_FALSE(val.HasValue());
-    EXPECT_STREQ(val.GetError<const char*>(), "some error");
-    EXPECT_STREQ(std::move(val).GetError<const char*>(), "some error");
-    EXPECT_STREQ(ReturnError().GetError<const char*>(), "some error");
-
-    const auto cval = ReturnError();
-    EXPECT_FALSE(cval.IsEmpty());
-    EXPECT_TRUE(cval.HasAnyError());
-    EXPECT_TRUE(cval.HasError<const char*>());
-    EXPECT_FALSE(cval.HasValue());
-    EXPECT_STREQ(cval.GetError<const char*>(), "some error");
+TEST(Convertible, Concept) {
+    static_assert(ConvertibleTo<Result<int, float>, Result<int, float, char>>);
+    static_assert(!ConvertibleTo<Result<int, float, char>, Result<int, float>>);
+    static_assert(ConvertibleTo<Result<detail::Impossible, float>, Result<int, float>>);
+    static_assert(!ConvertibleTo<Result<char, float>, Result<int, float>>);
 }
 
-Result<int, bool, const char*> CallReturnError() {
-    return ReturnError();
+TEST(ConvertConstruct, SameErrIndex) {
+    Result<int, float, short> r = makeError(1.f);
+    Result<int, float, char, double, short> u = r;
+
+    EXPECT_TRUE(u.hasError<float>());
+    EXPECT_EQ(1.f, u.getError<float>());
 }
 
-TEST(ResultTest, Conversion) {
-    auto val = CallReturnError();
-    EXPECT_FALSE(val.IsEmpty());
-    EXPECT_TRUE(val.HasAnyError());
-    EXPECT_TRUE(val.HasError<const char*>());
-    EXPECT_FALSE(val.HasValue());
-    EXPECT_EQ(val.GetErrorIndex(), 1U);
-    EXPECT_STREQ(val.GetError<const char*>(), "some error");
-}
+TEST(ConvertConstruct, DifferentErrIndex) {
+    Result<int, float, int> r = makeError(1.f);
+    Result<int, char, float, double, int> u = r;
 
-Result<int, const char*> DiscardBoolError() {
-    auto val = CallReturnError();
-    EXPECT_EQ(val.GetErrorIndex(), 1U);
-    return val.DiscardErrors<bool>();
-}
-
-TEST(ResultTest, DiscardErrorType) {
-    auto val = DiscardBoolError();
-    EXPECT_FALSE(val.IsEmpty());
-    EXPECT_TRUE(val.HasAnyError());
-    EXPECT_TRUE(val.HasError<const char*>());
-    EXPECT_FALSE(val.HasValue());
-    EXPECT_STREQ(val.GetError<const char*>(), "some error");
-}
-
-Result<int, const char*, bool> ErrorPermutation() {
-    return CallReturnError();
-}
-
-TEST(ResultTest, ErrorPermutation) {
-    auto val = ErrorPermutation();
-    EXPECT_FALSE(val.IsEmpty());
-    EXPECT_TRUE(val.HasAnyError());
-    EXPECT_TRUE(val.HasError<const char*>());
-    EXPECT_FALSE(val.HasValue());
-    EXPECT_EQ(val.GetErrorIndex(), 0U);
-    EXPECT_STREQ(val.GetError<const char*>(), "some error");
-}
-
-TEST(ResultTest, Invert) {
-    {
-        Result<void, int, float> v1 = {};
-        Result<char, float, short> v2 = 'a';
-
-        auto inverted = invert(v1, v2);
-        EXPECT_FALSE(inverted.HasAnyError());
-        EXPECT_TRUE(inverted.HasValue());
-        EXPECT_EQ(std::make_tuple('a'), inverted.GetValue());
-    }
-
-    {
-        Result<int, int, float> v1 = 10;
-        Result<char, float, short> v2 = 'a';
-        Result<std::string, float, short> v3 = std::string("Hello");
-
-        auto inverted = invert(v1, v2, v3);
-        EXPECT_FALSE(inverted.HasAnyError());
-        EXPECT_TRUE(inverted.HasValue());
-        EXPECT_EQ(std::make_tuple(10, 'a', std::string("Hello")), inverted.GetValue());
-    }
-
-    {
-        Result<void, int, float> v1 = MakeError(10);
-        Result<char, float, short> v2 = 'a';
-
-        auto inverted = invert(v1, v2);
-        EXPECT_TRUE(inverted.HasAnyError());
-        EXPECT_TRUE(inverted.HasError<int>());
-        EXPECT_FALSE(inverted.HasValue());
-        EXPECT_EQ(10, inverted.GetError<int>());
-    }
-
-    {
-        Result<int, int, float> v1 = 10;
-        Result<char, float, short> v2 = MakeError(10.f);
-        Result<std::string, float, short> v3 = std::string("Hello");
-
-        auto inverted = invert(v1, v2, v3);
-        EXPECT_TRUE(inverted.HasAnyError());
-        EXPECT_TRUE(inverted.HasError<float>());
-        EXPECT_FALSE(inverted.HasValue());
-        EXPECT_EQ(10.f, inverted.GetError<float>());
-    }
-
-    {
-        Result<int, int, float> v1 = 10;
-        Result<char, float, short> v2 = 'a';
-        Result<std::string, float, short> v3 = MakeError<short>(8);
-
-        auto inverted = invert(v1, v2, v3);
-        EXPECT_TRUE(inverted.HasAnyError());
-        EXPECT_TRUE(inverted.HasError<short>());
-        EXPECT_FALSE(inverted.HasValue());
-        EXPECT_EQ(8, inverted.GetError<short>());
-    }
+    EXPECT_TRUE(u.hasError<float>());
+    EXPECT_EQ(1.f, u.getError<float>());
 }
 
 }  // namespace result
