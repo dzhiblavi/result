@@ -1,3 +1,4 @@
+#include "result/detail/overloaded.h"
 #include "result/result.h"
 
 #include "./remember_op.h"
@@ -175,6 +176,16 @@ TEST(SwitchIndex, Correct) {
         default:
             FAIL();
     }
+}
+
+TEST(Visit, Return) {
+    Result<int, float, int> r = makeError(2);
+
+    int x = r.visit(detail::Overloaded{
+        [](int x) { return x * 2; },
+    });
+
+    EXPECT_EQ(x, 4);
 }
 
 }  // namespace result

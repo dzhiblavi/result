@@ -1,6 +1,7 @@
 #pragma once
 
 #include "result/detail/min_sized_type.h"
+#include "result/detail/overloaded.h"
 #include "result/detail/propagate_category.h"
 #include "result/detail/vtables.h"
 
@@ -36,16 +37,34 @@ template <typename E>
 struct err_tag_t {};  // NOLINT
 
 template <typename E>
-inline constexpr err_tag_t<E> err_tag;  //  NOLINT
+constexpr err_tag_t<E> err_tag;  //  NOLINT
+
+// For Result::visit
+struct val_tag_t {};                 // NOLINT
+inline constexpr val_tag_t val_tag;  // NOLINT
 
 template <typename V, typename... Es>
 class Result {
+    static_assert(std::is_same_v<V, std::decay_t<V>>);
+    static_assert((std::is_same_v<Es, std::decay_t<Es>> && ...));
+    static_assert(tl::Set<tl::List<Es...>>);
+
     using Self = Result<V, Es...>;
     using VTable = detail::VTable<V, Es...>;
+    using StoredTypes = tl::List<V, Es...>;
+    using Types = tl::List<detail::Value, Es...>;
+    using IndexType = detail::MinimalSizedIndexType<1 + sizeof...(Es)>;
+
+    static constexpr size_t StorageSize = std::max({sizeof(V), sizeof(Es)...});
+    static constexpr bool ValueInErrors = tl::Contains<tl::List<Es...>, V>;
 
  public:
+    using value_type = V;  // NOLINT
     using ValueType = V;
     using ErrorTypes = tl::List<Es...>;
+
+    template <typename U>
+    using RebindValue = Result<U, Es...>;
 
     ~Result() noexcept {
         VTable::destroy(ptr(), index_);
@@ -117,6 +136,37 @@ class Result {
         return VTable::visit(std::forward<F>(f), self.ptr(), self.index_);
     }
 
+    template <typename F, typename Self>
+    decltype(auto) safeVisit(this Self&& self, F&& f) {  // NOLINT
+        if constexpr (!ValueInErrors) {
+            return std::forward<Self>(self).safeVisit(std::forward<F>(f));
+        }
+
+        return std::forward<Self>(self).visit([&]<typename U>(U&& value) {
+            using T = std::decay_t<U>;
+
+            if constexpr (std::is_same_v<T, V>) {
+                if (self.index() == self.valueIndex()) {
+                    return f(val_tag, std::forward<U>(value));
+                } else {
+                    return f(std::forward<U>(value));
+                }
+            } else {
+                return f(std::forward<U>(value));
+            }
+        });
+    }
+
+    template <typename Self>
+    decltype(auto) operator*(this Self&& self) {
+        return std::forward<Self>(self).value();
+    }
+
+    template <typename Self>
+    decltype(auto) operator->(this Self&& self) {
+        return std::forward<Self>(self).value();
+    }
+
     template <typename Self>
     [[nodiscard]] decltype(auto) value(this Self&& self) {
         return std::forward<Self>(self).template as<V>();
@@ -134,6 +184,10 @@ class Result {
 
     [[nodiscard]] bool hasAnyError() const noexcept {
         return !hasValue();
+    }
+
+    [[nodiscard]] explicit operator bool() const noexcept {
+        return !hasAnyError();
     }
 
     template <typename E>
@@ -157,11 +211,6 @@ class Result {
     }
 
  private:
-    using StoredTypes = tl::List<V, Es...>;
-    using Types = tl::List<detail::Value, Es...>;
-    using IndexType = detail::MinimalSizedIndexType<1 + sizeof...(Es)>;
-    static constexpr size_t StorageSize = std::max({sizeof(V), sizeof(Es)...});
-
     template <ConvertibleTo<Self> R>
     void construct(R&& from) {  // NOLINT
         using From = std::decay_t<R>;

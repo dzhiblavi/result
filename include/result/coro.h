@@ -1,7 +1,7 @@
 #pragma once
 
-#include "result/detail/coro/awaitable.h"
-#include "result/detail/coro/promise.h"
+#include "result/coro/awaitable.h"
+#include "result/coro/promise.h"
 
 template <typename T, typename... Es>
 auto operator co_await(result::Result<T, Es...> o) {

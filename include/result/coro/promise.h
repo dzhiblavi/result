@@ -1,6 +1,6 @@
 #pragma once
 
-#include "result/detail/coro/return_object_holder.h"
+#include "result/coro/return_object_holder.h"
 #include "result/result.h"
 
 #include <coroutine>

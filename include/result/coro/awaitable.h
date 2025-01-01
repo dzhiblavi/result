@@ -1,6 +1,6 @@
 #pragma once
 
-#include "result/detail/coro/promise.h"
+#include "result/coro/promise.h"
 
 #include <coroutine>
 

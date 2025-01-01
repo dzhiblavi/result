@@ -165,7 +165,7 @@ struct VTable {
 
     template <typename F, SelfPtr S>
     static constexpr decltype(auto) visit(F&& f, S* self, size_t index) {
-        CallableFunctorArray<S, F, Ts...>::call(std::forward<F>(f), self, index);
+        return CallableFunctorArray<S, F, Ts...>::call(std::forward<F>(f), self, index);
     }
 
     template <typename Ref, SelfPtr S>
