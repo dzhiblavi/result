@@ -1,7 +1,6 @@
 #pragma once
 
 #include "result/detail/min_sized_type.h"
-#include "result/detail/overloaded.h"
 #include "result/detail/propagate_category.h"
 #include "result/detail/vtables.h"
 
