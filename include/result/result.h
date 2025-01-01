@@ -138,14 +138,10 @@ class Result {
 
     template <typename F, typename Self>
     decltype(auto) safeVisit(this Self&& self, F&& f) {  // NOLINT
-        if constexpr (!ValueInErrors) {
-            return std::forward<Self>(self).safeVisit(std::forward<F>(f));
-        }
-
         return std::forward<Self>(self).visit([&]<typename U>(U&& value) {
             using T = std::decay_t<U>;
 
-            if constexpr (std::is_same_v<T, V>) {
+            if constexpr (std::is_same_v<T, V> && ValueInErrors) {
                 if (self.index() == self.valueIndex()) {
                     return f(val_tag, std::forward<U>(value));
                 } else {

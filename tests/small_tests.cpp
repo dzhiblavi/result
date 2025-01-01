@@ -188,4 +188,34 @@ TEST(Visit, Return) {
     EXPECT_EQ(x, 4);
 }
 
+TEST(SafeVisit, NoValueInErrors) {
+    Result<int, float, char> r = makeError('2');
+
+    r.safeVisit(detail::Overloaded{
+        [](int) { FAIL(); },
+        [](float) { FAIL(); },
+        [](char x) { EXPECT_EQ(x, '2'); },
+    });
+}
+
+TEST(SafeVisit, ValueInErrorsValue) {
+    Result<int, float, int> r = 2;
+
+    r.safeVisit(detail::Overloaded{
+        [](val_tag_t, int x) { EXPECT_EQ(x, 2); },
+        [](int) { FAIL(); },
+        [](float) { FAIL(); },
+    });
+}
+
+TEST(SafeVisit, ValueInErrorsError) {
+    Result<int, float, int> r = makeError(2);
+
+    r.safeVisit(detail::Overloaded{
+        [](val_tag_t, int) { FAIL(); },
+        [](int x) { EXPECT_EQ(x, 2); },
+        [](float) { FAIL(); },
+    });
+}
+
 }  // namespace result
