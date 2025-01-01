@@ -141,7 +141,8 @@ TEST(Convertible, Concept) {
     static_assert(ConvertibleTo<Result<int, float>, Result<int, float, char>>);
     static_assert(!ConvertibleTo<Result<int, float, char>, Result<int, float>>);
     static_assert(ConvertibleTo<Result<detail::Impossible, float>, Result<int, float>>);
-    static_assert(!ConvertibleTo<Result<char, float>, Result<int, float>>);
+    static_assert(ConvertibleTo<Result<char, float>, Result<int, float>>);
+    static_assert(!ConvertibleTo<Result<char, float>, Result<std::string, float>>);
 }
 
 TEST(ConvertConstruct, SameErrIndex) {
@@ -158,6 +159,22 @@ TEST(ConvertConstruct, DifferentErrIndex) {
 
     EXPECT_TRUE(u.hasError<float>());
     EXPECT_EQ(1.f, u.error<float>());
+}
+
+TEST(ConvertConstruct, DifferentValueTypeErr) {
+    Result<int, float, int> r = makeError(2);
+    Result<long, float, int> u = r;
+
+    EXPECT_TRUE(r.hasError<int>());
+    EXPECT_EQ(r.error<int>(), 2);
+}
+
+TEST(ConvertConstruct, DifferentValueTypeVal) {
+    Result<int, float, int> r = 2;
+    Result<long, float, int> u = r;
+
+    EXPECT_TRUE(r.hasValue());
+    EXPECT_EQ(r.value(), 2L);
 }
 
 TEST(SwitchIndex, Correct) {

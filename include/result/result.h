@@ -1,6 +1,7 @@
 #pragma once
 
 #include "result/detail/min_sized_type.h"
+#include "result/detail/overloaded.h"
 #include "result/detail/propagate_category.h"
 #include "result/detail/vtables.h"
 
@@ -18,7 +19,7 @@ struct Impossible {};
 
 template <typename From, typename To>
 concept ValueConvertibleTo =
-    (std::is_same_v<typename From::ValueType, typename To::ValueType> ||
+    (std::is_convertible_v<typename From::ValueType, typename To::ValueType> ||
      std::is_same_v<typename From::ValueType, Impossible>);
 
 template <typename From, typename To>
@@ -216,6 +217,17 @@ class Result {
         using From = std::decay_t<R>;
         using FromVTable = typename From::VTable;
 
+        if constexpr (
+            !std::is_same_v<detail::Impossible, typename From::value_type> &&
+            !std::is_same_v<value_type, typename From::value_type>) {
+            if (from.hasValue()) {
+                // from has value that is convertible to our value
+                new (ptr()) V(std::forward<R>(from).value());
+                set<detail::Value>();
+                return;
+            }
+        }
+
         const auto from_index = from.index_;
         FromVTable::template construct<decltype(from)>(from.ptr(), ptr(), from.index_);
 
@@ -233,6 +245,17 @@ class Result {
 
         using From = std::decay_t<R>;
         using FromVTable = typename From::VTable;
+
+        if constexpr (
+            !std::is_same_v<detail::Impossible, typename From::value_type> &&
+            !std::is_same_v<value_type, typename From::value_type>) {
+            if (from.hasValue()) {
+                // from has value of different type. need to destroy anyhow
+                VTable::destroy(ptr(), index_);
+                new (this) Result(std::forward<R>(from));
+                return;
+            }
+        }
 
         static constexpr auto index_map = tl::injection(typename From::Types{}, Types{});
         const auto from_index = from.index_;
