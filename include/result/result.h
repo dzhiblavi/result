@@ -169,7 +169,7 @@ class Result {
     }
 
     template <typename U, typename Self>
-    [[nodiscard]] V valueOr(this Self& self, U&& default_value) {
+    [[nodiscard]] V valueOr(this Self&& self, U&& default_value) {
         return self.hasValue() ? std::forward<Self>(self).value()
                                : static_cast<V>(std::forward<U>(default_value));
     }
