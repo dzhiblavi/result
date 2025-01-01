@@ -87,7 +87,7 @@ class Result {
     }
 
     template <ConvertibleTo<Self> R>
-    Result(R&& from) {  // NOLINT
+    Result(R&& from) {
         construct(std::forward<R>(from));
     }
 
@@ -117,37 +117,43 @@ class Result {
         return VTable::visit(std::forward<F>(f), self.ptr(), self.index_);
     }
 
-    [[nodiscard]] bool hasValue() noexcept {
-        return is<detail::Value>();
-    }
-
-    [[nodiscard]] bool hasAnyError() noexcept {
-        return !hasValue();
-    }
-
-    template <typename E>
-    requires tl::Contains<ErrorTypes, E>
-    [[nodiscard]] bool hasError() noexcept {
-        return is<E>();
-    }
-
     template <typename Self>
-    [[nodiscard]] decltype(auto) getValue(this Self&& self) {
+    [[nodiscard]] decltype(auto) value(this Self&& self) {
         return std::forward<Self>(self).template as<V>();
     }
 
     template <typename E, typename Self>
     requires tl::Contains<ErrorTypes, E>
-    [[nodiscard]] decltype(auto) getError(this Self&& self) {
+    [[nodiscard]] decltype(auto) error(this Self&& self) {
         return std::forward<Self>(self).template as<E>();
+    }
+
+    [[nodiscard]] bool hasValue() const noexcept {
+        return is<detail::Value>();
+    }
+
+    [[nodiscard]] bool hasAnyError() const noexcept {
+        return !hasValue();
+    }
+
+    template <typename E>
+    requires tl::Contains<ErrorTypes, E>
+    [[nodiscard]] bool hasError() const noexcept {
+        return is<E>();
     }
 
     [[nodiscard]] size_t index() const noexcept {
         return index_;
     }
 
-    [[nodiscard]] size_t getErrorIndex() const noexcept {
-        return index_ - 1;
+    [[nodiscard]] /*static*/ constexpr size_t valueIndex() const noexcept {
+        return tl::Find<detail::Value, Types>;
+    }
+
+    template <typename E>
+    requires tl::Contains<ErrorTypes, E>
+    [[nodiscard]] /*static*/ constexpr size_t errorIndex() const noexcept {
+        return tl::Find<E, Types>;
     }
 
  private:
@@ -199,13 +205,13 @@ class Result {
 
     template <typename T>
     requires tl::Contains<Types, T>
-    bool is() {
+    bool is() const noexcept {
         return index_ == tl::Find<T, Types>;
     }
 
     template <typename T, typename Self>
     requires tl::Contains<StoredTypes, T>
-    decltype(auto) as(this Self&& self) {
+    decltype(auto) as(this Self&& self) noexcept {
         using U = detail::propagateCategory<Self&&, T>;
         return reinterpret_cast<U>(std::forward<Self>(self).data_);  // NOLINT
     }
@@ -220,7 +226,7 @@ class Result {
     }
 
     alignas(V) alignas(Es...) std::byte data_[StorageSize]{};
-    IndexType index_ = 0;
+    IndexType index_;
 
     template <typename U, typename... Gs>
     friend class Result;

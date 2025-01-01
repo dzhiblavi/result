@@ -16,7 +16,7 @@ struct ResultAwaitable {
 
     T await_resume() {  // NOLINT
         assert(!object.hasAnyError());
-        return std::move(object).getValue();
+        return std::move(object).value();
     }
 
     template <typename U>

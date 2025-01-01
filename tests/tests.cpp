@@ -54,7 +54,7 @@ struct ValueConstructorTest {
         EXPECT_TRUE(voe.hasValue());
         EXPECT_FALSE(voe.hasAnyError());
         EXPECT_FALSE(... || voe.template hasError<ErrorTypes>());
-        EXPECT_EQ(ValueType{}, voe.getValue());
+        EXPECT_EQ(ValueType{}, voe.value());
         VisitChecker<ValueType, ValueType, ErrorTypes...>::check(voe);
     }
 };
@@ -78,10 +78,10 @@ struct MakeErrorTest {
             test::Op(test::Destroy, ErrorType::Idx)));
 
         EXPECT_TRUE(voe.hasAnyError());
-        EXPECT_EQ(error_index, voe.getErrorIndex());
+        EXPECT_EQ(1 + error_index, voe.index());
         EXPECT_TRUE(voe.template hasError<ErrorType>());
         EXPECT_EQ(1, (... + int(voe.template hasError<ErrorTypes>())));
-        EXPECT_EQ(ErrorType{}, voe.template getError<ErrorType>());
+        EXPECT_EQ(ErrorType{}, voe.template error<ErrorType>());
         VisitChecker<ValueType, ErrorType, ErrorTypes...>::check(voe);
     }
 };

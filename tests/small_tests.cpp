@@ -22,7 +22,7 @@ TEST(DefaultConstruct, Correct) {
     EXPECT_TRUE(r.hasValue());
     EXPECT_FALSE(r.hasAnyError());
     EXPECT_FALSE(r.hasError<float>());
-    EXPECT_EQ(0, r.getValue());
+    EXPECT_EQ(0, r.value());
 }
 
 TEST(DefaultConstruct, NonCopyable) {
@@ -31,8 +31,8 @@ TEST(DefaultConstruct, NonCopyable) {
     EXPECT_TRUE(r.hasValue());
     EXPECT_FALSE(r.hasAnyError());
     EXPECT_FALSE(r.hasError<float>());
-    EXPECT_EQ(1, r.getValue().value);
-    [[maybe_unused]] auto x = std::move(r).getValue();
+    EXPECT_EQ(1, r.value().value);
+    [[maybe_unused]] auto x = std::move(r).value();
 }
 
 TEST(MakeError, Correct) {
@@ -42,7 +42,7 @@ TEST(MakeError, Correct) {
     EXPECT_TRUE(r.hasAnyError());
     EXPECT_TRUE(r.hasError<float>());
     EXPECT_FALSE(r.hasError<char>());
-    EXPECT_EQ(1.f, r.getError<float>());
+    EXPECT_EQ(1.f, r.error<float>());
 }
 
 TEST(MakeError, NonCopyable) {
@@ -51,8 +51,8 @@ TEST(MakeError, NonCopyable) {
     EXPECT_FALSE(r.hasValue());
     EXPECT_TRUE(r.hasAnyError());
     EXPECT_TRUE(r.hasError<Nocopy>());
-    EXPECT_EQ(1, r.getError<Nocopy>().value);
-    [[maybe_unused]] auto e = std::move(r).getError<Nocopy>();
+    EXPECT_EQ(1, r.error<Nocopy>().value);
+    [[maybe_unused]] auto e = std::move(r).error<Nocopy>();
 }
 
 TEST(ValueConstruct, Correct) {
@@ -61,7 +61,7 @@ TEST(ValueConstruct, Correct) {
     EXPECT_TRUE(r.hasValue());
     EXPECT_FALSE(r.hasAnyError());
     EXPECT_FALSE(r.hasError<int>());
-    EXPECT_EQ(10, r.getValue());
+    EXPECT_EQ(10, r.value());
 }
 
 TEST(CopyConstruct, Value) {
@@ -69,7 +69,7 @@ TEST(CopyConstruct, Value) {
     Result<int, char, int> u = r;
 
     EXPECT_TRUE(u.hasValue());
-    EXPECT_EQ(10, u.getValue());
+    EXPECT_EQ(10, u.value());
 }
 
 TEST(CopyConstruct, Error) {
@@ -77,7 +77,7 @@ TEST(CopyConstruct, Error) {
     Result<int, char, float> u = r;
 
     EXPECT_TRUE(u.hasError<float>());
-    EXPECT_EQ(1.f, u.getError<float>());
+    EXPECT_EQ(1.f, u.error<float>());
 }
 
 TEST(CopyConstruct, ErrorNonCopyable) {
@@ -85,7 +85,7 @@ TEST(CopyConstruct, ErrorNonCopyable) {
     Result<int, char, Nocopy> u = std::move(r);
 
     EXPECT_TRUE(u.hasError<Nocopy>());
-    EXPECT_EQ(1, u.getError<Nocopy>().value);
+    EXPECT_EQ(1, u.error<Nocopy>().value);
 }
 
 TEST(Assign, ValueToValue) {
@@ -93,7 +93,7 @@ TEST(Assign, ValueToValue) {
     r = 2;
 
     EXPECT_TRUE(r.hasValue());
-    EXPECT_EQ(2, r.getValue());
+    EXPECT_EQ(2, r.value());
 }
 
 TEST(Assign, ValueToError) {
@@ -101,7 +101,7 @@ TEST(Assign, ValueToError) {
     r = 2;
 
     EXPECT_TRUE(r.hasValue());
-    EXPECT_EQ(2, r.getValue());
+    EXPECT_EQ(2, r.value());
 }
 
 TEST(Assign, ErrorToValue) {
@@ -109,7 +109,7 @@ TEST(Assign, ErrorToValue) {
     r = makeError(1.f);
 
     EXPECT_TRUE(r.hasError<float>());
-    EXPECT_EQ(1.f, r.getError<float>());
+    EXPECT_EQ(1.f, r.error<float>());
 }
 
 TEST(Assign, ErrorToError) {
@@ -117,7 +117,7 @@ TEST(Assign, ErrorToError) {
     r = makeError(1.f);
 
     EXPECT_TRUE(r.hasError<float>());
-    EXPECT_EQ(1.f, r.getError<float>());
+    EXPECT_EQ(1.f, r.error<float>());
 }
 
 TEST(Assign, ValueToErrorNonCopyable) {
@@ -125,7 +125,7 @@ TEST(Assign, ValueToErrorNonCopyable) {
     r = 1;
 
     EXPECT_TRUE(r.hasValue());
-    EXPECT_EQ(1, r.getValue());
+    EXPECT_EQ(1, r.value());
 }
 
 TEST(Assign, ErrorToValueNonCopyable) {
@@ -133,7 +133,7 @@ TEST(Assign, ErrorToValueNonCopyable) {
     r = makeError(1);
 
     EXPECT_TRUE(r.hasError<int>());
-    EXPECT_EQ(1, r.getError<int>());
+    EXPECT_EQ(1, r.error<int>());
 }
 
 TEST(Convertible, Concept) {
@@ -148,7 +148,7 @@ TEST(ConvertConstruct, SameErrIndex) {
     Result<int, float, char, double, short> u = r;
 
     EXPECT_TRUE(u.hasError<float>());
-    EXPECT_EQ(1.f, u.getError<float>());
+    EXPECT_EQ(1.f, u.error<float>());
 }
 
 TEST(ConvertConstruct, DifferentErrIndex) {
@@ -156,7 +156,25 @@ TEST(ConvertConstruct, DifferentErrIndex) {
     Result<int, char, float, double, int> u = r;
 
     EXPECT_TRUE(u.hasError<float>());
-    EXPECT_EQ(1.f, u.getError<float>());
+    EXPECT_EQ(1.f, u.error<float>());
+}
+
+TEST(SwitchIndex, Correct) {
+    Result<int, float, int> r = makeError(1.f);
+
+    switch (r.index()) {
+        case r.valueIndex():
+            FAIL();
+            break;
+        case r.errorIndex<float>():
+            EXPECT_EQ(1.f, r.error<float>());
+            break;
+        case r.errorIndex<int>():
+            FAIL();
+            break;
+        default:
+            FAIL();
+    }
 }
 
 }  // namespace result

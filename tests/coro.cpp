@@ -17,7 +17,7 @@ Res<int> faulty(std::string err) {
 
 TEST(Coro, CoJust) {
     auto x = just(1);
-    EXPECT_EQ(x.getValue(), 1);
+    EXPECT_EQ(x.value(), 1);
 }
 
 TEST(Coro, CoJustLinear) {
@@ -28,7 +28,7 @@ TEST(Coro, CoJustLinear) {
     }();
 
     EXPECT_TRUE(x.hasValue());
-    EXPECT_EQ(x.getValue(), 3);
+    EXPECT_EQ(x.value(), 3);
 }
 
 TEST(Coro, Faulty) {
@@ -40,7 +40,7 @@ TEST(Coro, Faulty) {
 
     EXPECT_FALSE(x.hasValue());
     EXPECT_TRUE(x.hasAnyError());
-    EXPECT_EQ(x.getError<std::string>(), "hello");
+    EXPECT_EQ(x.error<std::string>(), "hello");
 }
 
 }  // namespace result

@@ -81,24 +81,24 @@ Result<int, const char*> ReturnError() {
     return makeError<const char*>("an error");
 }
 
-TEST(GetValueTest, RefQualifiers) {
+TEST(valueTest, RefQualifiers) {
     {
         Result<int> verr(42);
-        static_assert(std::is_same_v<decltype(std::move(verr).getValue()), int&&>);
-        static_assert(std::is_same_v<decltype(verr.getValue()), int&>);
-        static_assert(std::is_same_v<decltype(ReturnValue().getValue()), int&&>);
+        static_assert(std::is_same_v<decltype(std::move(verr).value()), int&&>);
+        static_assert(std::is_same_v<decltype(verr.value()), int&>);
+        static_assert(std::is_same_v<decltype(ReturnValue().value()), int&&>);
         static_assert(
-            std::is_same_v<decltype(static_cast<const Result<int>&>(verr).getValue()), const int&>);
+            std::is_same_v<decltype(static_cast<const Result<int>&>(verr).value()), const int&>);
     }
     {
         Result<bool, int> verr = makeError<int>(42);
-        static_assert(std::is_same_v<decltype(std::move(verr).getError<int>()), int&&>);
-        static_assert(std::is_same_v<decltype(verr.getError<int>()), int&>);
+        static_assert(std::is_same_v<decltype(std::move(verr).error<int>()), int&&>);
+        static_assert(std::is_same_v<decltype(verr.error<int>()), int&>);
         static_assert(std::is_same_v<
-                      decltype(static_cast<const Result<bool, int>&>(verr).getError<int>()),
+                      decltype(static_cast<const Result<bool, int>&>(verr).error<int>()),
                       const int&>);
         static_assert(
-            std::is_same_v<decltype(ReturnError().getError<const char*>()), const char*&&>);
+            std::is_same_v<decltype(ReturnError().error<const char*>()), const char*&&>);
     }
 }
 
