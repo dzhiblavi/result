@@ -165,8 +165,16 @@ TEST(ConvertConstruct, DifferentValueTypeErr) {
     Result<int, float, int> r = makeError(2);
     Result<long, float, int> u = r;
 
-    EXPECT_TRUE(r.hasError<int>());
-    EXPECT_EQ(r.error<int>(), 2);
+    EXPECT_TRUE(u.hasError<int>());
+    EXPECT_EQ(u.error<int>(), 2);
+}
+
+TEST(ConvertConstruct, DifferentValueTypeOk) {
+    Result<const char*, float, int> r = "Hello";
+    Result<std::string, float, int> u(r);
+
+    EXPECT_TRUE(u.hasValue());
+    EXPECT_EQ(u.value(), "Hello");
 }
 
 TEST(ConvertConstruct, DifferentValueTypeVal) {
@@ -215,40 +223,40 @@ TEST(Visit, NonCopyable) {
     });
 }
 
-TEST(SafeVisit, NonCopyable) {
+TEST(taggedVisit, NonCopyable) {
     Result<Nocopy, float, int> r = Nocopy{};
 
-    std::move(r).safeVisit(detail::Overloaded{
+    std::move(r).taggedVisit(detail::Overloaded{
         [](val_tag_t, Nocopy x) { EXPECT_EQ(x.value, 1); },
         [](int) { FAIL(); },
         [](float) { FAIL(); },
     });
 }
 
-TEST(SafeVisit, NoValueInErrors) {
+TEST(taggedVisit, NoValueInErrors) {
     Result<int, float, char> r = makeError('2');
 
-    r.safeVisit(detail::Overloaded{
+    r.taggedVisit(detail::Overloaded{
         [](val_tag_t, int) { FAIL(); },
         [](float) { FAIL(); },
         [](char x) { EXPECT_EQ(x, '2'); },
     });
 }
 
-TEST(SafeVisit, ValueInErrorsValue) {
+TEST(taggedVisit, ValueInErrorsValue) {
     Result<int, float, int> r = 2;
 
-    r.safeVisit(detail::Overloaded{
+    r.taggedVisit(detail::Overloaded{
         [](val_tag_t, int x) { EXPECT_EQ(x, 2); },
         [](int) { FAIL(); },
         [](float) { FAIL(); },
     });
 }
 
-TEST(SafeVisit, ValueInErrorsError) {
+TEST(taggedVisit, ValueInErrorsError) {
     Result<int, float, int> r = makeError(2);
 
-    r.safeVisit(detail::Overloaded{
+    r.taggedVisit(detail::Overloaded{
         [](val_tag_t, int) { FAIL(); },
         [](int x) { EXPECT_EQ(x, 2); },
         [](float) { FAIL(); },

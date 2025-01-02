@@ -1,8 +1,10 @@
 #pragma once
 
 #include "result/detail/min_sized_type.h"
+#include "result/detail/overloaded.h"
 #include "result/detail/propagate_category.h"
-#include "result/detail/vtables.h"
+#include "result/detail/strong_typedef.h"
+#include "result/detail/vtable.h"
 
 #include <type_list/list.h>
 
@@ -24,8 +26,6 @@ concept ValueConvertibleTo =
 template <typename From, typename To>
 concept ErrorConvertibleTo = tl::SubsetOf<typename From::ErrorTypes, typename To::ErrorTypes>;
 
-struct Value {};
-
 }  // namespace detail
 
 template <typename From, typename To>
@@ -38,7 +38,6 @@ struct err_tag_t {};  // NOLINT
 template <typename E>
 constexpr err_tag_t<E> err_tag;  //  NOLINT
 
-// For Result::visit
 struct val_tag_t {};                 // NOLINT
 inline constexpr val_tag_t val_tag;  // NOLINT
 
@@ -49,13 +48,13 @@ class Result {
     static_assert(tl::Set<tl::List<Es...>>);
 
     using Self = Result<V, Es...>;
-    using VTable = detail::VTable<V, Es...>;
-    using StoredTypes = tl::List<V, Es...>;
-    using Types = tl::List<detail::Value, Es...>;
+    struct Val : detail::StrongTypedef<Val, V> {};
+
     using IndexType = detail::MinimalSizedIndexType<1 + sizeof...(Es)>;
+    using Types = tl::List<Val, Es...>;
+    using VTable = detail::VTable<Val, Es...>;
 
     static constexpr size_t StorageSize = std::max({sizeof(V), sizeof(Es)...});
-    static constexpr bool ValueInErrors = tl::Contains<tl::List<Es...>, V>;
 
  public:
     using value_type = V;  // NOLINT
@@ -66,27 +65,27 @@ class Result {
     using RebindValue = Result<U, Es...>;
 
     ~Result() noexcept {
-        VTable::destroy(ptr(), index_);
+        destroy();
     }
 
     template <std::same_as<V> U = V>
     requires std::is_default_constructible_v<U>
     Result() {
-        new (ptr()) V();
-        set<detail::Value>();
+        new (ptr()) Val();
+        set<Val>();
     }
 
     template <typename U = V>
     explicit(!std::is_convertible_v<U, V>) Result(U&& from) {
-        new (ptr()) V(std::forward<U>(from));
-        set<detail::Value>();
+        new (ptr()) Val(std::forward<U>(from));
+        set<Val>();
     }
 
     template <typename... Args>
     requires std::is_constructible_v<V, Args...>
     Result(std::in_place_t, Args&&... args) {
-        new (ptr()) V(std::forward<Args>(args)...);
-        set<detail::Value>();
+        new (ptr()) Val(std::forward<Args>(args)...);
+        set<Val>();
     }
 
     template <typename... Args, std::constructible_from<Args...> E>
@@ -132,35 +131,28 @@ class Result {
 
     template <typename F, typename Self>
     decltype(auto) visit(this Self&& self, F&& f) {  // NOLINT
-        return VTable::visit(
-            [&](auto& value) { return f(std::forward_like<Self>(value)); },
+        using RVal = detail::propagateConst<Self, Val>;
+
+        return VTable::dispatch(
+            detail::Overloaded{
+                [&](RVal& value) { return f(std::forward_like<Self>(value).get()); },
+                [&]<typename E>(E& error) { return f(std::forward_like<Self>(error)); },
+            },
             self.ptr(),
-            self.index_);
+            self.index());
     }
 
     template <typename F, typename Self>
-    decltype(auto) safeVisit(this Self&& self, F&& f) {  // NOLINT
-        return VTable::visit(
-            [&]<typename U>(U& value) {
-                using T = std::decay_t<U>;
-                constexpr bool is_value = std::is_same_v<T, V>;
+    decltype(auto) taggedVisit(this Self&& self, F&& f) {  // NOLINT
+        using RVal = detail::propagateConst<Self, Val>;
 
-                if constexpr (is_value) {
-                    if constexpr (ValueInErrors) {
-                        if (self.index() == self.valueIndex()) {
-                            return f(val_tag, std::forward_like<Self>(value));
-                        } else {
-                            return f(std::forward_like<Self>(value));
-                        }
-                    } else {
-                        return f(val_tag, std::forward_like<Self>(value));
-                    }
-                } else {
-                    return f(std::forward_like<Self>(value));
-                }
+        return VTable::dispatch(
+            detail::Overloaded{
+                [&](RVal& value) { return f(val_tag, std::forward_like<Self>(value).get()); },
+                [&]<typename E>(E& error) { return f(std::forward_like<Self>(error)); },
             },
             self.ptr(),
-            self.index_);
+            self.index());
     }
 
     template <typename Self>
@@ -181,7 +173,7 @@ class Result {
 
     template <typename Self>
     [[nodiscard]] decltype(auto) value(this Self&& self) {
-        return std::forward<Self>(self).template as<V>();
+        return std::forward<Self>(self).template as<Val>().get();
     }
 
     template <typename E, typename Self>
@@ -191,7 +183,7 @@ class Result {
     }
 
     [[nodiscard]] bool hasValue() const noexcept {
-        return is<detail::Value>();
+        return is<Val>();
     }
 
     [[nodiscard]] bool hasAnyError() const noexcept {
@@ -213,7 +205,7 @@ class Result {
     }
 
     [[nodiscard]] /*static*/ constexpr size_t valueIndex() const noexcept {
-        return tl::Find<detail::Value, Types>;
+        return tl::Find<Val, Types>;
     }
 
     template <typename E>
@@ -227,28 +219,30 @@ class Result {
     void construct(R&& from) {  // NOLINT
         using From = std::decay_t<R>;
         using FromVTable = typename From::VTable;
+        using FromVal = detail::propagateConst<R, typename From::Val>;
 
-        if constexpr (
-            !std::is_same_v<detail::Impossible, typename From::value_type> &&
-            !std::is_same_v<value_type, typename From::value_type>) {
-            if (from.hasValue()) {
-                // `from' has value of different type: convert-construct
-                new (ptr()) V(std::forward<R>(from).value());
-                set<detail::Value>();
-                return;
-            }
-        }
+        FromVTable::dispatch(
+            detail::Overloaded{
+                [&](FromVal& val) {  //
+                    using FV = typename From::value_type;
 
-        // `from' has an error or a value of the same type
-        const auto from_index = from.index_;
-        FromVTable::template construct<decltype(from)>(from.ptr(), ptr(), from.index_);
-
-        static constexpr auto index_map = tl::injection(typename From::Types{}, Types{});
-        index_ = index_map[from_index];
+                    if constexpr (!std::is_same_v<FV, detail::Impossible>) {
+                        new (this) Result(std::forward_like<R>(val.get()));
+                    } else {
+                        std::unreachable();
+                    }
+                },
+                [&]<typename G>(G& err) {
+                    using E = std::decay_t<G>;
+                    new (this) Result(err_tag<E>, std::forward_like<R>(err));
+                },
+            },
+            from.ptr(),
+            from.index());
     }
 
     template <ConvertibleTo<Self> R>
-    void assign(R&& from) {
+    void assign(R&& from) {  // NOLINT
         if constexpr (std::is_same_v<Self, std::decay_t<R>>) {
             if (this == &from) [[unlikely]] {
                 return;
@@ -256,30 +250,40 @@ class Result {
         }
 
         using From = std::decay_t<R>;
-        using FromVTable = typename From::VTable;
+        using FromVal = detail::propagateConst<R, typename From::Val>;
 
-        if constexpr (
-            !std::is_same_v<detail::Impossible, typename From::value_type> &&
-            !std::is_same_v<value_type, typename From::value_type>) {
-            if (from.hasValue()) {
-                // `from' has value of different type: need to destroy current value/error
-                VTable::destroy(ptr(), index_);
-                new (this) Result(std::forward<R>(from));
-                return;
-            }
-        }
+        From::VTable::dispatch(
+            detail::Overloaded{
+                [&](FromVal& val) {  //
+                    using FV = typename From::value_type;
 
-        // `from' has an error or a value of the same type
-        static constexpr auto index_map = tl::injection(typename From::Types{}, Types{});
-        const auto from_index = from.index_;
-        const auto this_index = index_map[from_index];
+                    if constexpr (!std::is_same_v<FV, detail::Impossible>) {
+                        if constexpr (std::is_same_v<FV, value_type>) {
+                            if (is<Val>()) {
+                                value() = std::forward_like<R>(val.get());
+                                return;
+                            }
+                        }
 
-        if (index_ == this_index) {
-            FromVTable::template assign<decltype(from)>(from.ptr(), ptr(), from_index);
-        } else {
-            VTable::destroy(ptr(), index_);
-            new (this) Result(std::forward<R>(from));
-        }
+                        destroy();
+                        new (this) Result(std::forward_like<R>(val.get()));
+                    } else {
+                        std::unreachable();
+                    }
+                },
+                [&]<typename G>(G& err) {
+                    using E = std::decay_t<G>;
+
+                    if (is<E>()) {
+                        error<E>() = std::forward_like<R>(err);
+                    } else {
+                        destroy();
+                        new (this) Result(err_tag<E>, std::forward_like<R>(err));
+                    }
+                },
+            },
+            from.ptr(),
+            from.index());
     }
 
     template <typename T>
@@ -295,13 +299,23 @@ class Result {
     }
 
     template <typename T, typename Self>
-    requires tl::Contains<StoredTypes, T>
+    requires tl::Contains<Types, T>
     decltype(auto) as(this Self&& self) noexcept {
         using U = detail::propagateCategory<Self&&, T>;
         return reinterpret_cast<U>(std::forward<Self>(self).data_);  // NOLINT
     }
 
  private:
+    void destroy() noexcept {
+        VTable::dispatch(
+            []<typename T>(T& value) {
+                using U = std::decay_t<T>;
+                value.~U();
+            },
+            ptr(),
+            index());
+    }
+
     void* ptr() noexcept {
         return &data_;
     }

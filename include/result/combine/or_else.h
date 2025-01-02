@@ -34,7 +34,7 @@ struct [[nodiscard]] OrElse {
         using V = typename R::value_type;
         using Ret = detail::ApplyToTemplate<Result, tl::PushFront<Gs<R>, V>>;
 
-        return std::move(r).safeVisit(detail::Overloaded{
+        return std::move(r).taggedVisit(detail::Overloaded{
             [](val_tag_t, V value) -> Ret { return std::move(value); },
             [&](auto err) -> Ret { return std::forward<Self>(self).user(std::move(err)); },
         });

@@ -26,7 +26,7 @@ struct ResultAwaitable {
         auto* owner = promise.owner;
         assert(owner);
 
-        std::move(object).safeVisit(detail::Overloaded{
+        std::move(object).taggedVisit(detail::Overloaded{
             [](val_tag_t, auto) { std::unreachable(); },
             [&](auto error) { owner->assign(makeError(std::move(error))); },
         });

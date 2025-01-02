@@ -21,7 +21,7 @@ struct [[nodiscard]] Map {
         using V = typename R::value_type;
         using Ret = typename R::template RebindValue<U<V>>;
 
-        return std::move(r).safeVisit(detail::Overloaded{
+        return std::move(r).taggedVisit(detail::Overloaded{
             [&](val_tag_t, auto value) -> Ret {
                 return std::forward<Self>(self).user(std::move(value));
             },

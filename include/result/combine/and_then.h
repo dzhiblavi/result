@@ -23,7 +23,7 @@ struct [[nodiscard]] AndThen {
         using U = typename RU<V>::value_type;
         using Ret = Union<U, RU<V>, R>;
 
-        return std::move(r).safeVisit(detail::Overloaded{
+        return std::move(r).taggedVisit(detail::Overloaded{
             [&](val_tag_t, auto value) -> Ret {
                 return std::forward<Self>(self).user(std::move(value));
             },
