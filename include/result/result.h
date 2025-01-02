@@ -286,6 +286,16 @@ class Result {
             from.index());
     }
 
+    void destroy() noexcept {
+        VTable::dispatch(
+            []<typename T>(T& value) {
+                using U = std::decay_t<T>;
+                value.~U();
+            },
+            ptr(),
+            index());
+    }
+
     template <typename T>
     requires tl::Contains<Types, T>
     void set() {
@@ -303,17 +313,6 @@ class Result {
     decltype(auto) as(this Self&& self) noexcept {
         using U = detail::propagateCategory<Self&&, T>;
         return reinterpret_cast<U>(std::forward<Self>(self).data_);  // NOLINT
-    }
-
- private:
-    void destroy() noexcept {
-        VTable::dispatch(
-            []<typename T>(T& value) {
-                using U = std::decay_t<T>;
-                value.~U();
-            },
-            ptr(),
-            index());
     }
 
     void* ptr() noexcept {
